@@ -133,6 +133,7 @@ func (b *bridge) OpenWallet(call otto.FunctionCall) (response otto.Value) {
 // the RPC call.
 func (b *bridge) UnlockAccount(call otto.FunctionCall) (response otto.Value) {
 	// Make sure we have an account specified to unlock
+	fmt.Println("Hello this is CharlesGe test 2")
 	if !call.Argument(0).IsString() {
 		throwJSException("first argument must be the account to unlock")
 	}

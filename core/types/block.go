@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/rlp"
+	"fmt"
 )
 
 var (
@@ -180,6 +181,8 @@ type storageblock struct {
 // and receipts.
 func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*Receipt) *Block {
 	b := &Block{header: CopyHeader(header), td: new(big.Int)}
+
+	fmt.Println("This is a func NewBlock()")
 
 	// TODO: panic if len(txs) != len(receipts)
 	if len(txs) == 0 {

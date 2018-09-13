@@ -116,6 +116,10 @@ func (self *Miner) Start(coinbase common.Address) {
 	self.worker.start()
 }
 
+func (self *Miner) TEST() {
+	fmt.Println("Hello this is test from CharlesGe")
+}
+
 func (self *Miner) Stop() {
 	self.worker.stop()
 	atomic.StoreInt32(&self.shouldStart, 0)
