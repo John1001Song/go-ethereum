@@ -40,6 +40,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
+	"os"
+	"strings"
 )
 
 const (
@@ -667,13 +669,11 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		fmt.Println("This is handler.go/case TxMsg")
 		// Transactions arrived, make sure we have a valid and fresh chain to handle them
 		if atomic.LoadUint32(&pm.acceptTxs) == 0 {
-			log.Info("==0: atomic.LoadUint32")
 			break
 		}
 		// Transactions can be processed, parse all of them and deliver to the pool
 		var txs []*types.Transaction
 		if err := msg.Decode(&txs); err != nil {
-			log.Info("msg " + msg + ": " + err)
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
 		log.Info("***********************")
@@ -682,9 +682,15 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			if tx == nil {
 				return errResp(ErrDecode, "transaction %d is nil", i)
 			}
+
+			// Record Tx and time
+			timeNow := time.Now().String()
 			log.Info("Ready to MarkTransaction, hash = ")
-			a := tx.Hash()
-			fmt.Println(common.ToHex((&a)[:]))
+			hashValue := tx.Hash()
+			hashStr := common.ToHex((&hashValue)[:])
+			fmt.Println(hashStr)
+			recordTx(hashStr, timeNow)
+
 			p.MarkTransaction(tx.Hash())
 		}
 		pm.txpool.AddRemotes(txs)
@@ -693,6 +699,30 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}
 	return nil
+}
+
+func recordTx(hashValue string, timeNow string) {
+	filename := "txs/" + strings.Split(timeNow, " ")[0] + ".txt"
+	timeNow = strings.Join(strings.Split(timeNow, " ")[:4], " ")
+	appendToFile(filename, "[" + time.Now().String() + "] " + hashValue + "\n")
+}
+
+
+func appendToFile(fileName string, content string) error {
+	// 以只写的模式，打开文件
+	f, err := os.OpenFile(fileName, os.O_WRONLY, 0644)
+	if err != nil {
+		os.Create(fileName)
+		f, err = os.OpenFile(fileName, os.O_WRONLY, 0644)
+	}
+
+	// 查找文件末尾的偏移量
+	n, _ := f.Seek(0, os.SEEK_END)
+	// 从末尾的偏移量开始写入内容
+	_, err = f.WriteAt([]byte(content), n)
+
+	defer f.Close()
+	return err
 }
 
 // BroadcastBlock will either propagate a block to a subset of it's peers, or
