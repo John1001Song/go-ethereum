@@ -102,22 +102,17 @@ func testSyncBetweenNodes(t *testing.T, nodes, conns, chunkCount int, skipCheck 
 				}
 			}
 			localStore := store.(*storage.LocalStore)
-			netStore, err := storage.NewNetStore(localStore, nil)
-			if err != nil {
-				return nil, nil, err
-			}
-			bucket.Store(bucketKeyDB, netStore)
+			db := storage.NewDBAPI(localStore)
+			bucket.Store(bucketKeyDB, db)
 			kad := network.NewKademlia(addr.Over(), network.NewKadParams())
-			delivery := NewDelivery(kad, netStore)
-			netStore.NewNetFetcherFunc = network.NewFetcherFactory(delivery.RequestFromPeers, true).New
-
+			delivery := NewDelivery(kad, db)
 			bucket.Store(bucketKeyDelivery, delivery)
 
-			r := NewRegistry(addr, delivery, netStore, state.NewInmemoryStore(), &RegistryOptions{
+			r := NewRegistry(addr, delivery, db, state.NewInmemoryStore(), &RegistryOptions{
 				SkipCheck: skipCheck,
 			})
 
-			fileStore := storage.NewFileStore(netStore, storage.NewFileStoreParams())
+			fileStore := storage.NewFileStore(storage.NewNetStore(localStore, nil), storage.NewFileStoreParams())
 			bucket.Store(bucketKeyFileStore, fileStore)
 
 			return r, cleanup, nil
@@ -202,8 +197,8 @@ func testSyncBetweenNodes(t *testing.T, nodes, conns, chunkCount int, skipCheck 
 			if !ok {
 				return fmt.Errorf("No DB")
 			}
-			netStore := item.(*storage.NetStore)
-			netStore.Iterator(0, math.MaxUint64, po, func(addr storage.Address, index uint64) bool {
+			db := item.(*storage.DBAPI)
+			db.Iterator(0, math.MaxUint64, po, func(addr storage.Address, index uint64) bool {
 				hashes[i] = append(hashes[i], addr)
 				totalHashes++
 				hashCounts[i]++
@@ -221,11 +216,16 @@ func testSyncBetweenNodes(t *testing.T, nodes, conns, chunkCount int, skipCheck 
 					if !ok {
 						return fmt.Errorf("No DB")
 					}
-					db := item.(*storage.NetStore)
-					_, err := db.Get(ctx, key)
-					if err == nil {
-						found++
+					db := item.(*storage.DBAPI)
+					chunk, err := db.Get(ctx, key)
+					if err == storage.ErrFetching {
+						<-chunk.ReqC
+					} else if err != nil {
+						continue
 					}
+					// needed for leveldb not to be closed?
+					// chunk.WaitToStore()
+					found++
 				}
 			}
 			log.Debug("sync check", "node", node, "index", i, "bin", po, "found", found, "total", total)

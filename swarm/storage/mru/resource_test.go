@@ -87,7 +87,8 @@ func TestUpdateChunkSerializationErrorChecking(t *testing.T) {
 		resourceUpdate: resourceUpdate{
 			updateHeader: updateHeader{
 				UpdateLookup: UpdateLookup{
-					rootAddr: make([]byte, 79), // put the wrong length, should be storage.AddressLength
+
+					rootAddr: make([]byte, 79), // put the wrong length, should be storage.KeyLength
 				},
 				metaHash:  nil,
 				multihash: false,
@@ -98,8 +99,8 @@ func TestUpdateChunkSerializationErrorChecking(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected newUpdateChunk to fail when rootAddr or metaHash have the wrong length")
 	}
-	r.rootAddr = make([]byte, storage.AddressLength)
-	r.metaHash = make([]byte, storage.AddressLength)
+	r.rootAddr = make([]byte, storage.KeyLength)
+	r.metaHash = make([]byte, storage.KeyLength)
 	_, err = r.toChunk()
 	if err == nil {
 		t.Fatal("Expected newUpdateChunk to fail when there is no data")
@@ -196,7 +197,7 @@ func TestReverse(t *testing.T) {
 
 	// check that we can recover the owner account from the update chunk's signature
 	var checkUpdate SignedResourceUpdate
-	if err := checkUpdate.fromChunk(chunk.Address(), chunk.Data()); err != nil {
+	if err := checkUpdate.fromChunk(chunk.Addr, chunk.SData); err != nil {
 		t.Fatal(err)
 	}
 	checkdigest, err := checkUpdate.GetDigest()
@@ -214,8 +215,8 @@ func TestReverse(t *testing.T) {
 		t.Fatalf("addresses dont match: %x != %x", originaladdress, recoveredaddress)
 	}
 
-	if !bytes.Equal(key[:], chunk.Address()[:]) {
-		t.Fatalf("Expected chunk key '%x', was '%x'", key, chunk.Address())
+	if !bytes.Equal(key[:], chunk.Addr[:]) {
+		t.Fatalf("Expected chunk key '%x', was '%x'", key, chunk.Addr)
 	}
 	if period != checkUpdate.period {
 		t.Fatalf("Expected period '%d', was '%d'", period, checkUpdate.period)
@@ -269,16 +270,16 @@ func TestResourceHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	chunk, err := rh.chunkStore.Get(ctx, storage.Address(request.rootAddr))
+	chunk, err := rh.chunkStore.Get(context.TODO(), storage.Address(request.rootAddr))
 	if err != nil {
 		t.Fatal(err)
-	} else if len(chunk.Data()) < 16 {
-		t.Fatalf("chunk data must be minimum 16 bytes, is %d", len(chunk.Data()))
+	} else if len(chunk.SData) < 16 {
+		t.Fatalf("chunk data must be minimum 16 bytes, is %d", len(chunk.SData))
 	}
 
 	var recoveredMetadata ResourceMetadata
 
-	recoveredMetadata.binaryGet(chunk.Data())
+	recoveredMetadata.binaryGet(chunk.SData)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -703,7 +704,7 @@ func TestValidator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !rh.Validate(chunk.Address(), chunk.Data()) {
+	if !rh.Validate(chunk.Addr, chunk.SData) {
 		t.Fatal("Chunk validator fail on update chunk")
 	}
 
@@ -723,7 +724,7 @@ func TestValidator(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if rh.Validate(chunk.Address(), chunk.Data()) {
+	if rh.Validate(chunk.Addr, chunk.SData) {
 		t.Fatal("Chunk validator did not fail on update chunk with false address")
 	}
 
@@ -741,7 +742,7 @@ func TestValidator(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !rh.Validate(chunk.Address(), chunk.Data()) {
+	if !rh.Validate(chunk.Addr, chunk.SData) {
 		t.Fatal("Chunk validator fail on metadata chunk")
 	}
 }
@@ -782,7 +783,8 @@ func TestValidatorInStore(t *testing.T) {
 	// create content addressed chunks, one good, one faulty
 	chunks := storage.GenerateRandomChunks(chunk.DefaultSize, 2)
 	goodChunk := chunks[0]
-	badChunk := storage.NewChunk(chunks[1].Address(), goodChunk.Data())
+	badChunk := chunks[1]
+	badChunk.SData = goodChunk.SData
 
 	metadata := &ResourceMetadata{
 		StartTime: startTime,
@@ -799,7 +801,7 @@ func TestValidatorInStore(t *testing.T) {
 	updateLookup := UpdateLookup{
 		period:   42,
 		version:  1,
-		rootAddr: rootChunk.Address(),
+		rootAddr: rootChunk.Addr,
 	}
 
 	updateAddr := updateLookup.UpdateAddr()
@@ -824,16 +826,16 @@ func TestValidatorInStore(t *testing.T) {
 	}
 
 	// put the chunks in the store and check their error status
-	err = store.Put(context.Background(), goodChunk)
-	if err == nil {
+	storage.PutChunks(store, goodChunk)
+	if goodChunk.GetErrored() == nil {
 		t.Fatal("expected error on good content address chunk with resource validator only, but got nil")
 	}
-	err = store.Put(context.Background(), badChunk)
-	if err == nil {
+	storage.PutChunks(store, badChunk)
+	if badChunk.GetErrored() == nil {
 		t.Fatal("expected error on bad content address chunk with resource validator only, but got nil")
 	}
-	err = store.Put(context.Background(), uglyChunk)
-	if err != nil {
+	storage.PutChunks(store, uglyChunk)
+	if err := uglyChunk.GetErrored(); err != nil {
 		t.Fatalf("expected no error on resource update chunk with resource validator only, but got: %s", err)
 	}
 }
@@ -895,7 +897,7 @@ func getUpdateDirect(rh *Handler, addr storage.Address) ([]byte, error) {
 		return nil, err
 	}
 	var r SignedResourceUpdate
-	if err := r.fromChunk(addr, chunk.Data()); err != nil {
+	if err := r.fromChunk(addr, chunk.SData); err != nil {
 		return nil, err
 	}
 	return r.data, nil

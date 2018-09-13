@@ -46,16 +46,14 @@ func TestHasherStore(t *testing.T) {
 		hasherStore := NewHasherStore(chunkStore, MakeHashFunc(DefaultHash), tt.toEncrypt)
 
 		// Put two random chunks into the hasherStore
-		chunkData1 := GenerateRandomChunk(int64(tt.chunkLength)).Data()
-		ctx, cancel := context.WithTimeout(context.Background(), getTimeout)
-		defer cancel()
-		key1, err := hasherStore.Put(ctx, chunkData1)
+		chunkData1 := GenerateRandomChunk(int64(tt.chunkLength)).SData
+		key1, err := hasherStore.Put(context.TODO(), chunkData1)
 		if err != nil {
 			t.Fatalf("Expected no error got \"%v\"", err)
 		}
 
-		chunkData2 := GenerateRandomChunk(int64(tt.chunkLength)).Data()
-		key2, err := hasherStore.Put(ctx, chunkData2)
+		chunkData2 := GenerateRandomChunk(int64(tt.chunkLength)).SData
+		key2, err := hasherStore.Put(context.TODO(), chunkData2)
 		if err != nil {
 			t.Fatalf("Expected no error got \"%v\"", err)
 		}
@@ -63,13 +61,13 @@ func TestHasherStore(t *testing.T) {
 		hasherStore.Close()
 
 		// Wait until chunks are really stored
-		err = hasherStore.Wait(ctx)
+		err = hasherStore.Wait(context.TODO())
 		if err != nil {
 			t.Fatalf("Expected no error got \"%v\"", err)
 		}
 
 		// Get the first chunk
-		retrievedChunkData1, err := hasherStore.Get(ctx, key1)
+		retrievedChunkData1, err := hasherStore.Get(context.TODO(), key1)
 		if err != nil {
 			t.Fatalf("Expected no error, got \"%v\"", err)
 		}
@@ -80,7 +78,7 @@ func TestHasherStore(t *testing.T) {
 		}
 
 		// Get the second chunk
-		retrievedChunkData2, err := hasherStore.Get(ctx, key2)
+		retrievedChunkData2, err := hasherStore.Get(context.TODO(), key2)
 		if err != nil {
 			t.Fatalf("Expected no error, got \"%v\"", err)
 		}
@@ -107,12 +105,12 @@ func TestHasherStore(t *testing.T) {
 		}
 
 		// Check if chunk data in store is encrypted or not
-		chunkInStore, err := chunkStore.Get(ctx, hash1)
+		chunkInStore, err := chunkStore.Get(context.TODO(), hash1)
 		if err != nil {
 			t.Fatalf("Expected no error got \"%v\"", err)
 		}
 
-		chunkDataInStore := chunkInStore.Data()
+		chunkDataInStore := chunkInStore.SData
 
 		if tt.toEncrypt && bytes.Equal(chunkData1, chunkDataInStore) {
 			t.Fatalf("Chunk expected to be encrypted but it is stored without encryption")

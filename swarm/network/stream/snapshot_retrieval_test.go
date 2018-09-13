@@ -124,29 +124,22 @@ func runFileRetrievalTest(nodeCount int) error {
 				return nil, nil, err
 			}
 			bucket.Store(bucketKeyStore, store)
-
-			localStore := store.(*storage.LocalStore)
-			netStore, err := storage.NewNetStore(localStore, nil)
-			if err != nil {
-				return nil, nil, err
+			cleanup = func() {
+				os.RemoveAll(datadir)
+				store.Close()
 			}
+			localStore := store.(*storage.LocalStore)
+			db := storage.NewDBAPI(localStore)
 			kad := network.NewKademlia(addr.Over(), network.NewKadParams())
-			delivery := NewDelivery(kad, netStore)
-			netStore.NewNetFetcherFunc = network.NewFetcherFactory(delivery.RequestFromPeers, true).New
+			delivery := NewDelivery(kad, db)
 
-			r := NewRegistry(addr, delivery, netStore, state.NewInmemoryStore(), &RegistryOptions{
+			r := NewRegistry(addr, delivery, db, state.NewInmemoryStore(), &RegistryOptions{
 				DoSync:          true,
 				SyncUpdateDelay: 3 * time.Second,
 			})
 
-			fileStore := storage.NewFileStore(netStore, storage.NewFileStoreParams())
+			fileStore := storage.NewFileStore(storage.NewNetStore(localStore, nil), storage.NewFileStoreParams())
 			bucket.Store(bucketKeyFileStore, fileStore)
-
-			cleanup = func() {
-				os.RemoveAll(datadir)
-				netStore.Close()
-				r.Close()
-			}
 
 			return r, cleanup, nil
 
@@ -274,30 +267,23 @@ func runRetrievalTest(chunkCount int, nodeCount int) error {
 				return nil, nil, err
 			}
 			bucket.Store(bucketKeyStore, store)
-
-			localStore := store.(*storage.LocalStore)
-			netStore, err := storage.NewNetStore(localStore, nil)
-			if err != nil {
-				return nil, nil, err
+			cleanup = func() {
+				os.RemoveAll(datadir)
+				store.Close()
 			}
+			localStore := store.(*storage.LocalStore)
+			db := storage.NewDBAPI(localStore)
 			kad := network.NewKademlia(addr.Over(), network.NewKadParams())
-			delivery := NewDelivery(kad, netStore)
-			netStore.NewNetFetcherFunc = network.NewFetcherFactory(delivery.RequestFromPeers, true).New
+			delivery := NewDelivery(kad, db)
 
-			r := NewRegistry(addr, delivery, netStore, state.NewInmemoryStore(), &RegistryOptions{
+			r := NewRegistry(addr, delivery, db, state.NewInmemoryStore(), &RegistryOptions{
 				DoSync:          true,
 				SyncUpdateDelay: 0,
 			})
 
-			fileStore := storage.NewFileStore(netStore, storage.NewFileStoreParams())
+			fileStore := storage.NewFileStore(storage.NewNetStore(localStore, nil), storage.NewFileStoreParams())
 			bucketKeyFileStore = simulation.BucketKey("filestore")
 			bucket.Store(bucketKeyFileStore, fileStore)
-
-			cleanup = func() {
-				os.RemoveAll(datadir)
-				netStore.Close()
-				r.Close()
-			}
 
 			return r, cleanup, nil
 

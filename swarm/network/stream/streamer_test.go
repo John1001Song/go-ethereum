@@ -80,17 +80,15 @@ func newTestClient(t string) *testClient {
 	}
 }
 
-func (self *testClient) NeedData(ctx context.Context, hash []byte) func(context.Context) error {
+func (self *testClient) NeedData(ctx context.Context, hash []byte) func() {
 	self.receivedHashes[string(hash)] = hash
 	if bytes.Equal(hash, hash0[:]) {
-		return func(context.Context) error {
+		return func() {
 			<-self.wait0
-			return nil
 		}
 	} else if bytes.Equal(hash, hash2[:]) {
-		return func(context.Context) error {
+		return func() {
 			<-self.wait2
-			return nil
 		}
 	}
 	return nil

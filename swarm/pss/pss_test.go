@@ -556,6 +556,23 @@ OUTER:
 	}
 }
 
+type pssTestPeer struct {
+	*protocols.Peer
+	addr []byte
+}
+
+func (t *pssTestPeer) Address() []byte {
+	return t.addr
+}
+
+func (t *pssTestPeer) Update(addr network.OverlayAddr) network.OverlayAddr {
+	return addr
+}
+
+func (t *pssTestPeer) Off() network.OverlayAddr {
+	return &pssTestPeer{}
+}
+
 // forwarding should skip peers that do not have matching pss capabilities
 func TestMismatch(t *testing.T) {
 
@@ -565,7 +582,7 @@ func TestMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// initialize kad
+	// initialize overlay
 	baseaddr := network.RandomAddr()
 	kad := network.NewKademlia((baseaddr).Over(), network.NewKadParams())
 	rw := &p2p.MsgPipeRW{}
@@ -577,10 +594,10 @@ func TestMismatch(t *testing.T) {
 		Version: 0,
 	}
 	nid, _ := discover.HexID("0x01")
-	wrongpsspeer := network.NewPeer(&network.BzzPeer{
-		Peer:    protocols.NewPeer(p2p.NewPeer(nid, common.ToHex(wrongpssaddr.Over()), []p2p.Cap{wrongpsscap}), rw, nil),
-		BzzAddr: &network.BzzAddr{OAddr: wrongpssaddr.Over(), UAddr: nil},
-	}, kad)
+	wrongpsspeer := &pssTestPeer{
+		Peer: protocols.NewPeer(p2p.NewPeer(nid, common.ToHex(wrongpssaddr.Over()), []p2p.Cap{wrongpsscap}), rw, nil),
+		addr: wrongpssaddr.Over(),
+	}
 
 	// one peer doesn't even have pss (boo!)
 	nopssaddr := network.RandomAddr()
@@ -589,16 +606,16 @@ func TestMismatch(t *testing.T) {
 		Version: 1,
 	}
 	nid, _ = discover.HexID("0x02")
-	nopsspeer := network.NewPeer(&network.BzzPeer{
-		Peer:    protocols.NewPeer(p2p.NewPeer(nid, common.ToHex(nopssaddr.Over()), []p2p.Cap{nopsscap}), rw, nil),
-		BzzAddr: &network.BzzAddr{OAddr: nopssaddr.Over(), UAddr: nil},
-	}, kad)
+	nopsspeer := &pssTestPeer{
+		Peer: protocols.NewPeer(p2p.NewPeer(nid, common.ToHex(nopssaddr.Over()), []p2p.Cap{nopsscap}), rw, nil),
+		addr: nopssaddr.Over(),
+	}
 
 	// add peers to kademlia and activate them
 	// it's safe so don't check errors
-	kad.Register(wrongpsspeer.BzzAddr)
+	kad.Register([]network.OverlayAddr{wrongpsspeer})
 	kad.On(wrongpsspeer)
-	kad.Register(nopsspeer.BzzAddr)
+	kad.Register([]network.OverlayAddr{nopsspeer})
 	kad.On(nopsspeer)
 
 	// create pss
@@ -1619,17 +1636,17 @@ func newServices(allowRaw bool) adapters.Services {
 	}
 }
 
-func newTestPss(privkey *ecdsa.PrivateKey, kad *network.Kademlia, ppextra *PssParams) *Pss {
+func newTestPss(privkey *ecdsa.PrivateKey, overlay network.Overlay, ppextra *PssParams) *Pss {
 
 	var nid discover.NodeID
 	copy(nid[:], crypto.FromECDSAPub(&privkey.PublicKey))
 	addr := network.NewAddrFromNodeID(nid)
 
 	// set up routing if kademlia is not passed to us
-	if kad == nil {
+	if overlay == nil {
 		kp := network.NewKadParams()
 		kp.MinProxBinSize = 3
-		kad = network.NewKademlia(addr.Over(), kp)
+		overlay = network.NewKademlia(addr.Over(), kp)
 	}
 
 	// create pss
@@ -1637,7 +1654,7 @@ func newTestPss(privkey *ecdsa.PrivateKey, kad *network.Kademlia, ppextra *PssPa
 	if ppextra != nil {
 		pp.SymKeyCacheCapacity = ppextra.SymKeyCacheCapacity
 	}
-	ps, err := NewPss(kad, pp)
+	ps, err := NewPss(overlay, pp)
 	if err != nil {
 		return nil
 	}

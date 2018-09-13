@@ -62,7 +62,6 @@ type Config struct {
 	NetworkID         uint64
 	SwapEnabled       bool
 	SyncEnabled       bool
-	SyncingSkipCheck  bool
 	DeliverySkipCheck bool
 	LightNodeEnabled  bool
 	SyncUpdateDelay   time.Duration
@@ -90,8 +89,7 @@ func NewConfig() (c *Config) {
 		NetworkID:         network.DefaultNetworkID,
 		SwapEnabled:       false,
 		SyncEnabled:       true,
-		SyncingSkipCheck:  false,
-		DeliverySkipCheck: true,
+		DeliverySkipCheck: false,
 		SyncUpdateDelay:   15 * time.Second,
 		SwapAPI:           "",
 	}

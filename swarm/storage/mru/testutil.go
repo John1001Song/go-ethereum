@@ -17,12 +17,8 @@
 package mru
 
 import (
-	"context"
 	"fmt"
 	"path/filepath"
-	"sync"
-
-	"github.com/ethereum/go-ethereum/p2p/discover"
 
 	"github.com/ethereum/go-ethereum/swarm/storage"
 )
@@ -39,17 +35,6 @@ func (t *TestHandler) Close() {
 	t.chunkStore.Close()
 }
 
-type mockNetFetcher struct{}
-
-func (m *mockNetFetcher) Request(ctx context.Context) {
-}
-func (m *mockNetFetcher) Offer(ctx context.Context, source *discover.NodeID) {
-}
-
-func newFakeNetFetcher(context.Context, storage.Address, *sync.Map) storage.NetFetcher {
-	return &mockNetFetcher{}
-}
-
 // NewTestHandler creates Handler object to be used for testing purposes.
 func NewTestHandler(datadir string, params *HandlerParams) (*TestHandler, error) {
 	path := filepath.Join(datadir, testDbDirName)
@@ -62,11 +47,7 @@ func NewTestHandler(datadir string, params *HandlerParams) (*TestHandler, error)
 	}
 	localStore.Validators = append(localStore.Validators, storage.NewContentAddressValidator(storage.MakeHashFunc(resourceHashAlgorithm)))
 	localStore.Validators = append(localStore.Validators, rh)
-	netStore, err := storage.NewNetStore(localStore, nil)
-	if err != nil {
-		return nil, err
-	}
-	netStore.NewNetFetcherFunc = newFakeNetFetcher
+	netStore := storage.NewNetStore(localStore, nil)
 	rh.SetStore(netStore)
 	return &TestHandler{rh}, nil
 }

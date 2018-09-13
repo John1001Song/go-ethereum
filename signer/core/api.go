@@ -347,6 +347,7 @@ func (api *SignerAPI) SignTransaction(ctx context.Context, args SendTxArgs, meth
 		return nil, err
 	}
 	// Convert fields into a real transaction
+	fmt.Println("this is func SignTransaction()")
 	var unsignedTx = result.Transaction.toTransaction()
 
 	// The one to sign is the one that was returned from the UI

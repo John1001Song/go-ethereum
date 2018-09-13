@@ -107,14 +107,9 @@ func newStreamerTester(t *testing.T) (*p2ptest.ProtocolTester, *Registry, *stora
 		return nil, nil, nil, removeDataDir, err
 	}
 
-	netStore, err := storage.NewNetStore(localStore, nil)
-	if err != nil {
-		return nil, nil, nil, removeDataDir, err
-	}
-
-	delivery := NewDelivery(to, netStore)
-	netStore.NewNetFetcherFunc = network.NewFetcherFactory(delivery.RequestFromPeers, true).New
-	streamer := NewRegistry(addr, delivery, netStore, state.NewInmemoryStore(), nil)
+	db := storage.NewDBAPI(localStore)
+	delivery := NewDelivery(to, db)
+	streamer := NewRegistry(addr, delivery, db, state.NewInmemoryStore(), nil)
 	teardown := func() {
 		streamer.Close()
 		removeDataDir()
@@ -155,14 +150,14 @@ func newRoundRobinStore(stores ...storage.ChunkStore) *roundRobinStore {
 	}
 }
 
-func (rrs *roundRobinStore) Get(ctx context.Context, addr storage.Address) (storage.Chunk, error) {
+func (rrs *roundRobinStore) Get(ctx context.Context, addr storage.Address) (*storage.Chunk, error) {
 	return nil, errors.New("get not well defined on round robin store")
 }
 
-func (rrs *roundRobinStore) Put(ctx context.Context, chunk storage.Chunk) error {
+func (rrs *roundRobinStore) Put(ctx context.Context, chunk *storage.Chunk) {
 	i := atomic.AddUint32(&rrs.index, 1)
 	idx := int(i) % len(rrs.stores)
-	return rrs.stores[idx].Put(ctx, chunk)
+	rrs.stores[idx].Put(ctx, chunk)
 }
 
 func (rrs *roundRobinStore) Close() {

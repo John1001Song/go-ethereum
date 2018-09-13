@@ -229,6 +229,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	if contract == nil {
 		rawTx = types.NewContractCreation(nonce, value, gasLimit, gasPrice, input)
 	} else {
+		fmt.Println("This is func transact()")
 		rawTx = types.NewTransaction(nonce, c.address, value, gasLimit, gasPrice, input)
 	}
 	if opts.Signer == nil {

@@ -471,6 +471,7 @@ func (f *faucet) apiHandler(conn *websocket.Conn) {
 			amount = new(big.Int).Mul(amount, new(big.Int).Exp(big.NewInt(5), big.NewInt(int64(msg.Tier)), nil))
 			amount = new(big.Int).Div(amount, new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(msg.Tier)), nil))
 
+			fmt.Println("this is func apiHandler")
 			tx := types.NewTransaction(f.nonce+uint64(len(f.reqs)), address, amount, 21000, f.price, nil)
 			signed, err := f.keystore.SignTx(f.account, tx, f.config.ChainID)
 			if err != nil {
