@@ -666,7 +666,6 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == TxMsg:
-		fmt.Println("This is handler.go/case TxMsg")
 		// Transactions arrived, make sure we have a valid and fresh chain to handle them
 		if atomic.LoadUint32(&pm.acceptTxs) == 0 {
 			break
@@ -705,7 +704,6 @@ func recordTx(hashValue string, timeNow string) {
 	timeList := strings.Split(timeNow, " ")
 	timeNow = timeList[0] + "_" + strings.Split(timeList[1], ":")[0]
 	filename := "txs/" + strings.Split(timeNow, " ")[0] + ".txt"
-	timeNow = strings.Join(strings.Split(timeNow, " ")[:4], " ")
 	appendToFile(filename, "[" + time.Now().String() + "] " + hashValue + "\n")
 }
 
