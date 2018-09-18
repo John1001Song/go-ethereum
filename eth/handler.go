@@ -703,10 +703,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 func recordTx(hashValue string, timeNow string) {
 	timeList := strings.Split(timeNow, " ")
 	timeNow = timeList[0] + "_" + strings.Split(timeList[1], ":")[0]
-	filename := "txs/" + strings.Split(timeNow, " ")[0] + ".txt"
+	filename := "records/txs/" + strings.Split(timeNow, " ")[0] + ".txt"
 	appendToFile(filename, "[" + time.Now().String() + "] " + hashValue + "\n")
 }
-
 
 func appendToFile(fileName string, content string) error {
 	// 以只写的模式，打开文件

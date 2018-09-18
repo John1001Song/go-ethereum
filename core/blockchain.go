@@ -44,6 +44,8 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hashicorp/golang-lru"
+	"strings"
+	"os"
 )
 
 var (
@@ -1171,8 +1173,15 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		case CanonStatTy:
 			log.Info("Inserted new block", "number", block.Number(), "hash", block.Hash(), "uncles", len(block.Uncles()),
 				"txs", len(block.Transactions()), "gas", block.GasUsed(), "elapsed", common.PrettyDuration(time.Since(bstart)))
+
 			hashValue := block.Hash()
-			fmt.Println("Hash: " + common.ToHex((&hashValue)[:]))
+			contentToRecord := "[Inserted]Block Hash=" + string(common.ToHex((&hashValue)[:]) +
+				", number=" + block.Number().String() + ", timestamp=" + time.Unix(block.Time().Int64(), 0).String() + "\n")
+			for _, tx := range block.Transactions() {
+				hashValue := tx.Hash()
+				contentToRecord += common.ToHex((&hashValue)[:]) + ", "
+			}
+			recordBlock(contentToRecord, time.Now().String())
 
 			coalescedLogs = append(coalescedLogs, logs...)
 			blockInsertTimer.UpdateSince(bstart)
@@ -1185,8 +1194,15 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		case SideStatTy:
 			log.Info("Inserted forked block", "number", block.Number(), "hash", block.Hash(), "diff", block.Difficulty(), "elapsed",
 				common.PrettyDuration(time.Since(bstart)), "txs", len(block.Transactions()), "gas", block.GasUsed(), "uncles", len(block.Uncles()))
+
 			hashValue := block.Hash()
-			fmt.Println("Hash: " + common.ToHex((&hashValue)[:]))
+			contentToRecord := "[Inserted]Block Hash=" + string(common.ToHex((&hashValue)[:]) +
+				", number=" + block.Number().String() + ", timestamp=" + time.Unix(block.Time().Int64(), 0).String() + "\n")
+			for _, tx := range block.Transactions() {
+				hashValue := tx.Hash()
+				contentToRecord += common.ToHex((&hashValue)[:]) + ", "
+			}
+			recordBlock(contentToRecord, time.Now().String())
 
 			blockInsertTimer.UpdateSince(bstart)
 			events = append(events, ChainSideEvent{block})
@@ -1202,6 +1218,31 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		events = append(events, ChainHeadEvent{lastCanon})
 	}
 	return 0, events, coalescedLogs, nil
+}
+
+
+
+func recordBlock(content string, timeNow string) {
+	timeNow = strings.Split(timeNow, " ")[0]
+	filename := "records/blocks/" + strings.Split(timeNow, " ")[0] + ".txt"
+	appendToFile(filename, "[" + time.Now().String() + "] " + content + "\n")
+}
+
+func appendToFile(fileName string, content string) error {
+	// 以只写的模式，打开文件
+	f, err := os.OpenFile(fileName, os.O_WRONLY, 0644)
+	if err != nil {
+		os.Create(fileName)
+		f, err = os.OpenFile(fileName, os.O_WRONLY, 0644)
+	}
+
+	// 查找文件末尾的偏移量
+	n, _ := f.Seek(0, os.SEEK_END)
+	// 从末尾的偏移量开始写入内容
+	_, err = f.WriteAt([]byte(content), n)
+
+	defer f.Close()
+	return err
 }
 
 // insertStats tracks and reports on block insertion.
