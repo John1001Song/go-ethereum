@@ -62,6 +62,7 @@ func accessNewPass(ctx *cli.Context) {
 			utils.Fatalf("had an error printing the manifests: %v", err)
 		}
 	} else {
+		utils.Fatalf("uploading manifests")
 		err = uploadManifests(ctx, m, nil)
 		if err != nil {
 			utils.Fatalf("had an error uploading the manifests: %v", err)
