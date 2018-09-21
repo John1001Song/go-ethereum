@@ -1225,7 +1225,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 func recordBlock(content string, timeNow string) {
 	timeNow = strings.Split(timeNow, " ")[0]
 	filename := "records/blocks/" + strings.Split(timeNow, " ")[0] + ".txt"
-	print("********** Wright block into file " + filename + "**********")
 	appendToFile(filename, "[" + time.Now().String() + "] " + content + "\n")
 }
 
