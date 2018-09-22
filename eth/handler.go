@@ -689,9 +689,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			hashStr := common.ToHex((&hashValue)[:])
 			fmt.Println(hashStr)
 
-			gas := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))
-			fmt.Printf("Gas fee=%s, Cost=%s, ValueAmount=%s\n", gas.String(), tx.Cost().String(), tx.Value().String())
-			recordTx(hashStr, timeNow)
+			maxFee := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))
+			content := "Hash=" + hashStr + ", GasPrice=" + tx.GasPrice().String() + ", GasLimet=" + tx.Gas().String() + ", MaxFee=" + maxFee.String()
+			recordTx(content, timeNow)
 
 			p.MarkTransaction(tx.Hash())
 		}
