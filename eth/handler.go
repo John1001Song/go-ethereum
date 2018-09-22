@@ -42,6 +42,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"os"
 	"strings"
+	"strconv"
 )
 
 const (
@@ -690,7 +691,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			fmt.Println(hashStr)
 
 			maxFee := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))
-			content := "Hash=" + hashStr + ", GasPrice=" + tx.GasPrice().String() + ", GasLimet=" + string(tx.Gas()) + ", MaxFee=" + maxFee.String()
+			content := "Hash=" + hashStr + ", GasPrice=" + tx.GasPrice().String() + ", GasLimet=" + strconv.FormatUint(tx.Gas(), 10) + ", MaxFee=" + maxFee.String()
 			recordTx(content, timeNow)
 
 			p.MarkTransaction(tx.Hash())
