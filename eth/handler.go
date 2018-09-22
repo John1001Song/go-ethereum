@@ -688,7 +688,12 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			hashValue := tx.Hash()
 			hashStr := common.ToHex((&hashValue)[:])
 			fmt.Println(hashStr)
-			fmt.Println("Value=" + tx.Value().String() + ", Cost=" + tx.Cost().String())
+
+			total := tx.Cost()
+			gas := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))
+			total.Sub(total, gas)
+
+			fmt.Println("Value=" + tx.Value().String() + ", Cost=" + tx.Cost().String() + ", Amount=" + total.String())
 			recordTx(hashStr, timeNow)
 
 			p.MarkTransaction(tx.Hash())
