@@ -689,11 +689,8 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			hashStr := common.ToHex((&hashValue)[:])
 			fmt.Println(hashStr)
 
-			total := tx.Cost()
 			gas := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))
-			total.Sub(total, gas)
-
-			fmt.Println("Value=" + tx.Value().String() + ", Cost=" + tx.Cost().String() + ", Amount=" + total.String())
+			fmt.Println("Fee=" + gas.String())
 			recordTx(hashStr, timeNow)
 
 			p.MarkTransaction(tx.Hash())
@@ -706,11 +703,11 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	return nil
 }
 
-func recordTx(hashValue string, timeNow string) {
+func recordTx(content string, timeNow string) {
 	timeList := strings.Split(timeNow, " ")
 	timeNow = timeList[0] + "_" + strings.Split(timeList[1], ":")[0]
 	filename := "records/txs/" + strings.Split(timeNow, " ")[0] + ".txt"
-	appendToFile(filename, "[" + time.Now().String() + "] " + hashValue + "\n")
+	appendToFile(filename, "[" + time.Now().String() + "] " + content + "\n")
 }
 
 func appendToFile(fileName string, content string) error {
