@@ -688,6 +688,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			hashValue := tx.Hash()
 			hashStr := common.ToHex((&hashValue)[:])
 			fmt.Println(hashStr)
+			fmt.Println("Value=" + tx.Value() + ", Cost=" + tx.Cost())
 			recordTx(hashStr, timeNow)
 
 			p.MarkTransaction(tx.Hash())
