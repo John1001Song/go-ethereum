@@ -690,7 +690,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			fmt.Println(hashStr)
 
 			maxFee := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))
-			content := "Hash=" + hashStr + ", GasPrice=" + tx.GasPrice().String() + ", GasLimet=" + tx.Gas().String() + ", MaxFee=" + maxFee.String()
+			content := "Hash=" + hashStr + ", GasPrice=" + tx.GasPrice().String() + ", GasLimet=" + string(tx.Gas()) + ", MaxFee=" + maxFee.String()
 			recordTx(content, timeNow)
 
 			p.MarkTransaction(tx.Hash())
