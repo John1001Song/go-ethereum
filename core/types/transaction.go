@@ -102,15 +102,6 @@ func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 		d.Price.Set(gasPrice)
 	}
 
-	fmt.Println("*********************************************")
-	fmt.Println("New transaction")
-	fmt.Println("data: ")
-	fmt.Println(d.Payload)
-	fmt.Println("Hash")
-	fmt.Println(d.Hash)
-	fmt.Println("Amount")
-	fmt.Println(d.Amount)
-
 	return &Transaction{data: d}
 }
 
@@ -400,7 +391,7 @@ type Message struct {
 }
 
 func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte, checkNonce bool) Message {
-	fmt.Println("This is NewMessage()")
+
 	return Message{
 		from:       from,
 		to:         to,

@@ -676,7 +676,6 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := msg.Decode(&txs); err != nil {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
-		log.Info("***********************")
 		for i, tx := range txs {
 			// Validate and mark the remote transaction
 			if tx == nil {
@@ -685,11 +684,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 			// Record Tx and time
 			timeNow := time.Now().String()
-			log.Info("Ready to MarkTransaction, hash = ")
 			hashValue := tx.Hash()
 			hashStr := common.ToHex((&hashValue)[:])
-			fmt.Println(hashStr)
-
+			// Record GasPrice and GasLimit
 			maxFee := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))
 			content := "Hash=" + hashStr + ", GasPrice=" + tx.GasPrice().String() + ", GasLimet=" + strconv.FormatUint(tx.Gas(), 10) + ", MaxFee=" + maxFee.String()
 			recordTx(content, timeNow)
