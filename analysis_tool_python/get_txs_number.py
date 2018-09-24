@@ -1,8 +1,9 @@
 import os
 
+
 class GetTxNumber:
     def __init__(self):
-        self.path = "/home/ubuntu/cs690/go-ethereum/records/txs/"
+        self.path = "../records/txs/"
         self.files = os.listdir(self.path)
         self.file_dict = dict()
         self.num = 0
@@ -21,7 +22,7 @@ class GetTxNumber:
                 self.file_dict[file_date]['num'] += 1
             else:
                 self.file_dict[file_date] = {'num': 1, 'lines': 0}
-                self.file_dict[file_date]['lines'] += len(f.readlines())
+            self.file_dict[file_date]['lines'] += len(f.readlines())
 
     def print_day(self, date):
         info = self.file_dict[date]
