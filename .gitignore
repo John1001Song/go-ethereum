@@ -46,3 +46,5 @@ profile.cov
 
 **/yarn-error.log
 records
+analysis_tool_python/test_files
+analysis_tool_python/csv*
