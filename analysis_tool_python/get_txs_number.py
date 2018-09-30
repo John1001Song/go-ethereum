@@ -18,7 +18,7 @@ class GetTxNumber:
         with open(self.path + file, 'r') as f:
             print(str(self.num) + ": " + file)
             self.num += 1
-            file_date = file.split(".")[0].split('_')[0]
+            file_date = file.split(".")[0].split('.')[0]
 
             if file_date in self.file_dict:
                 self.file_dict[file_date]['num'] += 1
@@ -40,7 +40,7 @@ class GetTxNumber:
                     self.file_dict[file_date]['lines'] += 1
 
                 except:
-                    print(f"Exception at {path}: {line}")
+                    print(f"Exception at {file}: {line}")
 
     def print_day(self, date):
         info = self.file_dict[date]
