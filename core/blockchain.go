@@ -1175,8 +1175,11 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 				"txs", len(block.Transactions()), "gas", block.GasUsed(), "elapsed", common.PrettyDuration(time.Since(bstart)))
 
 			hashValue := block.Hash()
-			contentToRecord := "[Inserted]Block Hash=" + string(common.ToHex((&hashValue)[:]) +
-				", number=" + block.Number().String() + ", timestamp=" + time.Unix(block.Time().Int64(), 0).String() + "\n")
+			parentHash := block.ParentHash()
+			uncleHash := block.UncleHash()
+			contentToRecord := "[Inserted]Block Hash=" + common.ToHex((&hashValue)[:]) +
+				", parentHash=" + common.ToHex((&parentHash)[:]) + ", uncleHash=" + common.ToHex((&uncleHash)[:]) +
+				", number=" + block.Number().String() + ", timestamp=" + time.Unix(block.Time().Int64(), 0).String() + "\n"
 			for _, tx := range block.Transactions() {
 				hashValue := tx.Hash()
 				contentToRecord += common.ToHex((&hashValue)[:]) + ", "
@@ -1196,8 +1199,11 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 				common.PrettyDuration(time.Since(bstart)), "txs", len(block.Transactions()), "gas", block.GasUsed(), "uncles", len(block.Uncles()))
 
 			hashValue := block.Hash()
-			contentToRecord := "[Inserted]Block Hash=" + string(common.ToHex((&hashValue)[:]) +
-				", number=" + block.Number().String() + ", timestamp=" + time.Unix(block.Time().Int64(), 0).String() + "\n")
+			parentHash := block.ParentHash()
+			uncleHash := block.UncleHash()
+			contentToRecord := "[Inserted]Block Hash=" + common.ToHex((&hashValue)[:]) +
+				", parentHash=" + common.ToHex((&parentHash)[:]) + ", uncleHash=" + common.ToHex((&uncleHash)[:]) +
+				", number=" + block.Number().String() + ", timestamp=" + time.Unix(block.Time().Int64(), 0).String() + "\n"
 			for _, tx := range block.Transactions() {
 				hashValue := tx.Hash()
 				contentToRecord += common.ToHex((&hashValue)[:]) + ", "
