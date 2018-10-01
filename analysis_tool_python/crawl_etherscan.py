@@ -37,8 +37,55 @@ def parse_txs_list_page_content(page_content):
     txs_table = soup.find('table', attrs={'id':'transactions-table'})
     txs_table_body = txs_table.find('tbody')
 
-    print(txs_table_body)
+    # print(txs_table_body)
 
+    rows = txs_table_body.find_all('tr')
+    # read the table row by row
+    # each row is a {'Hash':hash_value, 'Type':type, 'From':hash_value, 'To':hash_value, 'Value':xxx ETH, 'Fee':xxx ETH, 'Gas Price':xx GWei, 'Internal Transactions':[{},{}],...}
+    # if the a tx does not have internal tx, then 'Internal Transactions':[] is a empty list
+    # every row is a {}
+    # every row with type Tx is a father row
+    # read the next row, if the row is not type Tx, then it is the father row's child, add it to father's 'Internal Transactions' list
+    father_tx = {}
+    current_tx = {}
+    i = 0
+    ele_index = 0
+    while i < len(rows):
+        cols = rows[i].find_all('td')
+        # for ele in cols:
+        #     print(ele.contents[0])
+        # current_tx['Hash'] = cols[0].contents[0]
+
+        # get all href links on this row
+        links = rows[i].find_all('a')
+
+        current_tx['Type'] = cols[1].contents[0]
+        # current_tx['From'] = cols[2].contents[0].get('href').split('/account/')[1]
+        # current_tx['To'] = cols[3].contents[0]
+        current_tx['Value'] = cols[4].contents[0]
+        current_tx['Fee'] = cols[5].contents[0]
+        current_tx['Gas Price'] = cols[6].contents[0]
+        current_tx['Internal Transactions'] = []
+        # print(current_tx)
+        if current_tx['Type'] == 'tx':
+            current_tx['Hash'] = f"0x{cols[0].contents[0].get('href').split('/tx/')[1]}"
+            current_tx['From'] = f"0x{links[1].get('href').split('/account/')[1]}"
+            current_tx['To'] = f"0x{links[2].get('href').split('/account/')[1]}"
+
+            tx_list.append(father_tx)
+            father_tx = current_tx
+        else:
+            # the internal tx hash is not recorded
+            # could be update later
+            current_tx['Hash'] = ''
+            current_tx['From'] = f"0x{links[0].get('href').split('/account/')[1]}"
+            current_tx['To'] = f"0x{links[1].get('href').split('/account/')[1]}"
+            father_tx['Internal Transactions'].append(current_tx)
+        i += 1
+
+    tx_list = list(filter(None, tx_list))
+    
+    # print(tx_list)
     return tx_list
 
 def parse_block_page_content(page_content):
