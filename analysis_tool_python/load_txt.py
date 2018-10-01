@@ -113,7 +113,7 @@ class EthereumData:
         key_3 = block_tx['hash'][-3]
         # Un-matched
         if not self.check_match(block_tx['hash'], key_1, key_2, key_3):
-            print(f"Unmatched: {block_tx['hash']}")
+            # print(f"Unmatched: {block_tx['hash']}")
             return False
         # Matched
         tx = self.shard_txs[key_1][key_2][key_3].pop(block_tx['hash'])
@@ -171,11 +171,11 @@ class EthereumData:
 
     def test(self):
         started_at = datetime.now()
-        # self.load_block("test_files/block.txt")
-        # self.load_tx("test_files/test_txs.txt")
-        #
-        # pickle.dump(self, open('test.p', 'wb'))
-        self = pickle.load(open("test.p", "rb"))
+        self.load_block("test_files/block.txt")
+        self.load_tx("test_files/test_txs.txt")
+
+        pickle.dump(self, open('test.p', 'wb'))
+        # self = pickle.load(open("test.p", "rb"))
 
         num, dup = self.count_tx_in_block(self.blocks)
         assert num == 500151, f"Count of tx in block = {num} is not 500151"
@@ -197,17 +197,26 @@ class EthereumData:
         print(f"Finished. it's been {(datetime.now()-started_at).seconds} seconds")
 
     def run(self, record_path):
-        [self.load_tx(record_path + '/txs/' + file) for file in os.listdir(record_path + '/txs')]
-        [self.load_block(record_path + '/blocks/' + file) for file in os.listdir(record_path + '/blocks')]
+        started_at = datetime.now()
+        # [self.load_tx(record_path + '/txs/' + file) for file in os.listdir(record_path + '/txs')]
+        # [self.load_block(record_path + '/blocks/' + file) for file in os.listdir(record_path + '/blocks')]
+        # pickle.dump(self, open('save_' + datetime.now().strftime('%Y-%m-%d-%H-%M') + '.p', 'wb'))
+        self = pickle.load(open('save_2018-10-01-10-50.p', 'rb'))
 
-        # pickle.dump(self, open('save.p', 'wb'))
-        #
-        # a = pickle.load(open('save.p', 'rb'))
+        num, dup = self.count_tx_in_block(self.blocks)
+        print(f"Original status: \nCount tx in block: num={num}, dup={dup}")
+        num = self.count_shard_tx(self.shard_txs)
+        print(f"Count shard_tx: num={num}")
+
+        self.match()
+
+        print(f"matched_txs={len(self.matched_txs)}, unmatched={len(self.unmatched_txs)}")
+        num, dup = self.count_tx_in_block(self.blocks)
+        print(f"Remaining: \nCount tx in block: num={num}, dup={dup}")
+        num = self.count_shard_tx(self.shard_txs)
+        print(f"Count shard_tx: num={num}")
+        print(f"Finished. it's been {(datetime.now()-started_at).seconds} seconds")
 
 
-# EthereumData().run('../records')
-EthereumData().test()
-# EthereumData().prepare_test_file()
-
-# pickle.dump(self, open( "save.p", "wb" ))
-# a = pickle.load(open("save.p", "rb"))
+if __name__ == '__main__':
+    EthereumData().run('../records')
