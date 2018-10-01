@@ -3,16 +3,6 @@ import json
 from bs4 import BeautifulSoup
 Soup = BeautifulSoup
 
-# build json example
-# accepted
-# You build the object before encoding it to a JSON string:
-#
-# import json
-#
-# data = {}
-# data['key'] = 'value'
-# json_data = json.dumps(data)
-
 def get_etherscan_block_page(block_hash, raw_url):
     # two urls are both ok
     # /block/block_height or /block/block_hash
@@ -94,6 +84,8 @@ def parse_block_page_content(page_content):
     soup = BeautifulSoup(page_content, 'html.parser')
     table_content = soup.find(id="ContentPlaceHolder1_maintable")
     info_list = table_content.find_all('div')
+    # print(info_list)
+    # print('\n')
     # iteration the table content in html
     i = 0
     while i < len(info_list):
@@ -122,43 +114,41 @@ def parse_block_page_content(page_content):
     table_dict['Mined By'] = raw_minor_hash.contents[0]
 
     # process the txs link and get the returned txs list
-    raw_txs_href = table_dict['Transactions']
+    # raw_txs_href = table_dict['Transactions']
+    block_height_split_from_txs_href = table_dict['Transactions'].get('href').split('block=')[1]
+    # original key, value in the dict contains the html format symbals
+    # example: 'Height': '\n\xa06429184\xa0\xa0\n'
+    # so, use the value from txs
+    table_dict['Height'] = block_height_split_from_txs_href
 
     # ==============process txs==========================
     # use etherchain instead of etherscan because chain contains all info in one page
     # https: // www.etherchain.org / block / 6429184
-    txs_list_page_link = 'https://etherchain.org/block/' + raw_txs_href.get('href').split('block=')[1]
+    txs_list_page_link = 'https://etherchain.org/block/' + block_height_split_from_txs_href
     tx_list = parse_txs_list_page_content(get_txs_list_page(txs_list_page_link))
     # print(txs_list_page_link)
+    table_dict['Transactions'] = tx_list
     # ===================================================
 
-    links = table_content.find_all('a')
-    for link in links:
-        # print(link)
-        pass
-
-    # for i in range(len(info_list)):
-    #     raw_key = info_list[i]
-    #     key = raw_key.contents[0]
-    #     print("key:\n")
-    #     print(key)
-    #     i += 1
-    #     raw_value = info_list[i]
-    #     value = raw_value.contents[0]
-    #     print("value:\n")
-    #     print(value)
-    # for info in info_list:
-    #     key = info.contents[0]
-    #     value = next(info).contents[0]
-    #     table_dict[key] = value
-    #     print(key)
-    #     print(value + "\n")
+    table_dict['received status'] = 'inserted'
     # print(table_dict)
-    # for key in table_dict.keys():
-    #     print(key)
-    #     print(table_dict[key])
-    #     print("\n")
+    return table_dict
 
-if __name__ == '__main__':
-    page_content = get_etherscan_block_page('0x839dcd43aae1908f8c7951c4295748e5186ce38ae94165263865f5bfaf58f076', 'https://etherscan.io/block/{}')
-    parse_block_page_content(page_content)
+def dump_to_json(table_dict):
+    pass
+
+def process_a_block(block_hash):
+    # outer funcs should call this func to process a block
+    # return the block info in json
+    page_content = get_etherscan_block_page(block_hash, 'https://etherscan.io/block/{}')
+    table_dict = parse_block_page_content(page_content)
+    json_data = json.dumps(table_dict)
+    return json_data
+
+# if __name__ == '__main__':
+#     page_content = get_etherscan_block_page('0x839dcd43aae1908f8c7951c4295748e5186ce38ae94165263865f5bfaf58f076', 'https://etherscan.io/block/{}')
+#     table_dict = parse_block_page_content(page_content)
+#     json_data = json.dumps(table_dict)
+#     print(json_data)
+
+
