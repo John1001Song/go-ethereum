@@ -170,12 +170,12 @@ class EthereumData:
                 f.write(f"[{each['created_at']} m=+1.23] {each['hash']}\n")
 
     def test(self):
-        started_at = datetime.now()
-        self.load_block("test_files/block.txt")
-        self.load_tx("test_files/test_txs.txt")
-
-        pickle.dump(self, open('test.p', 'wb'))
-        # self = pickle.load(open("test.p", "rb"))
+        # started_at = datetime.now()
+        # self.load_block("test_files/block.txt")
+        # self.load_tx("test_files/test_txs.txt")
+        #
+        # pickle.dump(self, open('test.p', 'wb'))
+        self = pickle.load(open("test.p", "rb"))
 
         num, dup = self.count_tx_in_block(self.blocks)
         assert num == 500151, f"Count of tx in block = {num} is not 500151"
@@ -198,10 +198,10 @@ class EthereumData:
 
     def run(self, record_path):
         started_at = datetime.now()
-        # [self.load_tx(record_path + '/txs/' + file) for file in os.listdir(record_path + '/txs')]
-        # [self.load_block(record_path + '/blocks/' + file) for file in os.listdir(record_path + '/blocks')]
-        # pickle.dump(self, open('save_' + datetime.now().strftime('%Y-%m-%d-%H-%M') + '.p', 'wb'))
-        self = pickle.load(open('save_2018-10-01-10-50.p', 'rb'))
+        [self.load_tx(record_path + '/txs/' + file) for file in os.listdir(record_path + '/txs')]
+        [self.load_block(record_path + '/blocks/' + file) for file in os.listdir(record_path + '/blocks')]
+        pickle.dump(self, open('save_' + datetime.now().strftime('%Y-%m-%d-%H-%M') + '.p', 'wb'))
+        # self = pickle.load(open('save_2018-10-01-10-50.p', 'rb'))
 
         num, dup = self.count_tx_in_block(self.blocks)
         print(f"Original status: \nCount tx in block: num={num}, dup={dup}")
