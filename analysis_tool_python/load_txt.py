@@ -1,4 +1,7 @@
 import random
+import os
+import pickle
+from datetime import datetime
 
 
 class EthereumData:
@@ -7,11 +10,12 @@ class EthereumData:
         self.txs = dict()
         # a block = {'received_status': 'Inserted', 'hash': 'xxx', 'number': '6393659', 'timestamp': '2018-09-24 23:59:22 +0000 UTC', 'txs': ['xxx', 'xxx]}
         self.blocks = list()
-        # shard_tx[a][b][1] = {"hash1": tx1, "hash2": tx2}
-        self.shard_tx = dict()
+        # shard_txs[a][b][1] = {"hash1": tx1, "hash2": tx2}
+        self.shard_txs = dict()
         self.num = 0
         self.matched_txs = list()
         self.unmatched_txs = list()
+        self.started_at = datetime.now()
 
     def load_tx(self, path):
         def parse_new_tx_info(pieces):
@@ -37,17 +41,16 @@ class EthereumData:
                     extract_info(line)
                 except:
                     print(f"Exception at {path}: {line}")
-        print(f"Load tx {path} completed. len={len(self.txs)}")
+        print(f"Load tx {path} completed. len={len(self.txs)}, it's been {(datetime.now()-self.started_at).seconds} seconds")
         self.split_txs_into_shards()
 
     def load_block(self, path):
         def extract_info(block_line, tx_line):
-            pieces = block_line.split(", ")
             block = dict()
-            block['received_status'] = pieces[0].split('Block Hash')[0].split('[')[-1].split(']')[0]
-            block['hash'] = pieces[0].split('Hash=')[1]
-            block['number'] = pieces[1].split('number=')[1]
-            block['timestamp'] = pieces[2].split('timestamp=')[1].strip('\n')
+            block['received_status'] = block_line.split('Block Hash')[0].split('[')[-1].split(']')[0]
+            block['hash'] = block_line.split('Hash=')[1].split(', ')[0]
+            block['number'] = block_line.split('number=')[1].split(', ')[0]
+            block['timestamp'] = block_line.split('timestamp=')[1].strip('\n')
             block['txs'] = [tx for tx in tx_line.strip(", \n").split(', ') if tx]
             self.blocks.append(block)
 
@@ -62,59 +65,93 @@ class EthereumData:
                     extract_info(block_line, f.readline())
                 except:
                     print(f"Exception at {path}: {block_line}")
-        print(f"Load block {path} completed. len={len(self.blocks)}")
+        print(f"Load block {path} completed. len={len(self.blocks)}, it's been {(datetime.now()-self.started_at).seconds} seconds")
 
     def split_txs_into_shards(self):
         print(f"len txs={len(self.txs)}")
-        shard_txs = dict()
         i = 0
         dup = 0
         for hash_value, tx in self.txs.items():
             key_1 = hash_value[-1]
             key_2 = hash_value[-2]
             key_3 = hash_value[-3]
-            if key_1 not in shard_txs:
-                shard_txs[key_1] = dict()
-            if key_2 not in shard_txs[key_1]:
-                shard_txs[key_1][key_2] = dict()
-            if key_3 not in shard_txs[key_1][key_2]:
-                shard_txs[key_1][key_2][key_3] = dict()
-            if hash_value in shard_txs[key_1][key_2][key_3]:
+            if key_1 not in self.shard_txs:
+                self.shard_txs[key_1] = dict()
+            if key_2 not in self.shard_txs[key_1]:
+                self.shard_txs[key_1][key_2] = dict()
+            if key_3 not in self.shard_txs[key_1][key_2]:
+                self.shard_txs[key_1][key_2][key_3] = dict()
+            if hash_value in self.shard_txs[key_1][key_2][key_3]:
                 dup += 1
                 continue
-            tx['hash'] = hash_value
-            shard_txs[key_1][key_2][key_3][hash_value] = tx
+            self.shard_txs[key_1][key_2][key_3][hash_value] = tx
             i += 1
-        self.shard_tx = shard_txs
         self.txs.clear()
         print(f"Txs has been split into shards. i={i}, dup={dup}")
 
     # Match self.shard_txs and self.blocks
     # Pre-work: load tx, load blocks
     def match(self):
+        self.unmatched_txs.clear()
         unique_txs = dict()
         for block in self.blocks:
-            for tx_hash_value in block['txs']:
+            for tx_hash_value in [copy_tx for copy_tx in block['txs']]:
                 if tx_hash_value in unique_txs:
                     continue
                 unique_txs[tx_hash_value] = 1
-                self.match_one_tx({'hash': tx_hash_value, 'block_timestamp': block['timestamp']})
+                block_tx = {'hash': tx_hash_value, 'block_timestamp': block['timestamp']}
+                if self.match_one_tx(block_tx):
+                    block['txs'].remove(tx_hash_value)
+                    # print(f"remove {tx_hash_value} from block['txs']")
+                else:
+                    self.unmatched_txs.append(block_tx)
+            # print(block['txs'])
 
     def match_one_tx(self, block_tx):
         key_1 = block_tx['hash'][-1]
         key_2 = block_tx['hash'][-2]
         key_3 = block_tx['hash'][-3]
-        if key_1 in self.shard_tx and key_2 in self.shard_tx[key_1] and key_3 in self.shard_tx[key_1][key_2] \
-                and block_tx['hash'] in self.shard_tx[key_1][key_2][key_3]:
-            tx = self.shard_tx[key_1][key_2][key_3][block_tx['hash']]
-            tx['block_timestamp'] = block_tx['block_timestamp']
-            self.matched_txs.append(tx)
-            self.shard_tx[key_1][key_2][key_3].pop(block_tx['hash'])
-        else:
+        # Un-matched
+        if not self.check_match(block_tx['hash'], key_1, key_2, key_3):
             print(f"Unmatched: {block_tx['hash']}")
-            self.unmatched_txs.append(block_tx['hash'])
+            return False
+        # Matched
+        tx = self.shard_txs[key_1][key_2][key_3].pop(block_tx['hash'])
+        tx['block_timestamp'] = block_tx['block_timestamp']
+        tx['hash'] = block_tx['hash']
+        self.matched_txs.append(tx)
+        return True
+
+    def check_match(self, hash_value, key_1, key_2, key_3):
+        return key_1 in self.shard_txs and key_2 in self.shard_txs[key_1] and key_3 in self.shard_txs[key_1][key_2] \
+               and hash_value in self.shard_txs[key_1][key_2][key_3]
+
+    @staticmethod
+    def count_tx_in_block(blocks):
+        num = 0
+        dup = 0
+        unique = dict()
+        for block in blocks:
+            for tx in block['txs']:
+                if tx in unique:
+                    dup += 1
+                    continue
+                else:
+                    unique[tx] = 1
+                    num += 1
+        return num, dup
+
+    @staticmethod
+    def count_shard_tx(shard_txs):
+        num = 0
+        for k1, v1 in shard_txs.items():
+            for k2, v2 in v1.items():
+                for k3, v3 in v2.items():
+                    num += len(v3)
+        return num
 
     # Insert block's txs into txs.txt, with only 20 left
+    # IMPORTANT: It's functional for old version before self.txs = dict()
     def prepare_test_file(self):
         self.load_block("test_files/block.txt")
         block_txs = list()
@@ -133,20 +170,44 @@ class EthereumData:
                 f.write(f"[{each['created_at']} m=+1.23] {each['hash']}\n")
 
     def test(self):
-        self.load_block("test_files/block.txt")
-        self.load_tx("test_files/test_txs.txt")
+        started_at = datetime.now()
+        # self.load_block("test_files/block.txt")
+        # self.load_tx("test_files/test_txs.txt")
+        #
+        # pickle.dump(self, open('test.p', 'wb'))
+        self = pickle.load(open("test.p", "rb"))
+
+        num, dup = self.count_tx_in_block(self.blocks)
+        assert num == 500151, f"Count of tx in block = {num} is not 500151"
+        assert dup == 0, f"Dup of tx in block = {dup} is not 0"
+        num = self.count_shard_tx(self.shard_txs)
+        assert num == 1079064, f"Count of shard_tx = {num} is not 1079064"
+
         self.match()
+
+        num, dup = self.count_tx_in_block(self.blocks)
+        assert num == 20, f"Count of tx in block = {num} is not 20"
+        assert dup == 0, f"Dup of tx in block = {dup} is not 0"
+        num = self.count_shard_tx(self.shard_txs)
+        assert num == 578933, f"Count of shard_tx = {num} is not 578933"
+
         assert len(self.txs) == 0, f"len(txs) = {len(self.txs)} is not 0"
-        assert len(self.matched_txs) == 513422, f"len(txs) = {len(self.matched_txs)} is not 513422"
+        assert len(self.matched_txs) == 500131, f"len(txs) = {len(self.matched_txs)} is not 500131"
         assert len(self.unmatched_txs) == 20, f"len(txs) = {len(self.unmatched_txs)} is not 20"
+        print(f"Finished. it's been {(datetime.now()-started_at).seconds} seconds")
+
+    def run(self, record_path):
+        [self.load_tx(record_path + '/txs/' + file) for file in os.listdir(record_path + '/txs')]
+        [self.load_block(record_path + '/blocks/' + file) for file in os.listdir(record_path + '/blocks')]
+
+        # pickle.dump(self, open('save.p', 'wb'))
+        #
+        # a = pickle.load(open('save.p', 'rb'))
 
 
-# data = EthereumData()
-# data.load_tx("../records/txs/2018-09-26_15.txt")
-# data.load_tx("../records/txs/2018-09-18_03.txt")
-# data.load_block("../records/blocks/2018-09-26.txt")
-# data.prepare_test_file()
-# data.test()
+# EthereumData().run('../records')
+EthereumData().test()
+# EthereumData().prepare_test_file()
 
-# pickle.dump( favorite_color, open( "save.p", "wb" ) )
+# pickle.dump(self, open( "save.p", "wb" ))
 # a = pickle.load(open("save.p", "rb"))
