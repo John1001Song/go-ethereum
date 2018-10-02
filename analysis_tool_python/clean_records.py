@@ -29,6 +29,8 @@ def clean_tx(file_path):
 
 def clean_txs():
     for f in os.listdir(RECORD_PATH + '/txs'):
+        if not f.startswith('2018'):
+            continue
         try:
             clean_tx(RECORD_PATH + '/txs/' + f)
         except:
