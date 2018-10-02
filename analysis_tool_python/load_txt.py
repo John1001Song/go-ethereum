@@ -4,6 +4,9 @@ import pickle
 from datetime import datetime
 
 
+RECORD_PATH = '../records'
+
+
 class EthereumData:
     def __init__(self):
         # key='hash', value={'created_at': '2018-09-16 08:17:41.392476255 -0700 PDT'}
@@ -18,15 +21,16 @@ class EthereumData:
         self.started_at = datetime.now()
 
     def load_tx(self, path):
-        def parse_new_tx_info(pieces):
-            return pieces[0].split("Hash=")[1], {"gas_price": pieces[1].split("GasPrice=")[1],
-                                                 "max_fee": pieces[3].split("MaxFee=")[1].strip("\n")}
+        def parse_new_tx_info(line):
+            return line.split("Hash=")[1].split(', ')[0], {"gas_price": line.split("GasPrice=")[1].split(', ')[0],
+                                                           "max_fee": line.split("MaxFee=")[1].strip("\n")}
 
         def extract_info(line):
-            pieces = line.split(", ")
             # New tx has gas info
-            (hash_value, tx) = parse_new_tx_info(pieces) if "Hash=" in pieces[0] else (pieces[0].split(" ")[-1].strip("\n"), {})
-            tx['created_at'] = pieces[0].split(" m=")[0].strip('[')
+            (hash_value, tx) = parse_new_tx_info(line) if "Hash=" in line else (line.split(" ")[-1].strip("\n"), {})
+            tx['created_at'] = line.split(" m=")[0].split('[')[1]
+            if hash_value in self.txs:
+                print(hash_value)
             self.txs[hash_value] = tx
 
         with open(path, 'r') as f:
@@ -50,6 +54,8 @@ class EthereumData:
             block['received_status'] = block_line.split('Block Hash')[0].split('[')[-1].split(']')[0]
             block['hash'] = block_line.split('Hash=')[1].split(', ')[0]
             block['number'] = block_line.split('number=')[1].split(', ')[0]
+            block['parentHash'] = block_line.split('parentHash=')[1].split(', ')[0] if 'parentHash' in block_line else ''
+            block['uncleHash'] = block_line.split('uncleHash=')[1].split(', ')[0] if 'uncleHash' in block_line else ''
             block['timestamp'] = block_line.split('timestamp=')[1].strip('\n')
             block['txs'] = [tx for tx in tx_line.strip(", \n").split(', ') if tx]
             self.blocks.append(block)
@@ -194,7 +200,10 @@ class EthereumData:
         assert len(self.txs) == 0, f"len(txs) = {len(self.txs)} is not 0"
         assert len(self.matched_txs) == 500131, f"len(txs) = {len(self.matched_txs)} is not 500131"
         assert len(self.unmatched_txs) == 20, f"len(txs) = {len(self.unmatched_txs)} is not 20"
-        print(f"Finished. it's been {(datetime.now()-started_at).seconds} seconds")
+        print(f"Finished. it's been {(datetime.now()-self.started_at).seconds} seconds")
+        with open('test_files/matched.txt', 'w') as f:
+            for each in self.matched_txs:
+                f.write(str(each) + '\n')
 
     def run(self, record_path):
         started_at = datetime.now()
@@ -217,6 +226,60 @@ class EthereumData:
         print(f"Count shard_tx: num={num}")
         print(f"Finished. it's been {(datetime.now()-started_at).seconds} seconds")
 
+    def find_3_way_fork(self, record_path):
+        # [self.load_block(record_path + '/blocks/' + file) for file in os.listdir(record_path + '/blocks')]
+        self.load_block('test_files/2018-10-01.txt')
+        u = dict()
+        for block in self.blocks:
+            number = block['number']
+            h = block['hash']
+            p = block['parentHash']
+            if number in u and u[number]['hash'] != h and u[number]['parentHash'] != p:
+                u[number]['num'] += 1
+                if u[number]['num'] > 2:
+                    print(number)
+            else:
+                u[number] = {'num': 1, 'hash': h, 'parentHash': p}
+
+    @staticmethod
+    def clean_tx(file_path):
+        u = dict()
+        rs = ''
+        with open(file_path, 'r') as f:
+            while True:
+                line = f.readline()
+                if not line:
+                    break
+                if '0x' not in line:
+                    continue
+                h = line.split("Hash=")[1].split(", ")[0] if "Hash=" in line else line.split(' ')[-1].strip('\n')
+                if h not in u:
+                    u[h] = 1
+                    rs += line
+                else:
+                    continue
+        with open(file_path.split('.')[0] + '---1.txt', 'w') as f:
+            f.write(rs)
+
+    @staticmethod
+    def clean_txs():
+        for f in os.listdir(RECORD_PATH + '/txs'):
+            print(f"Cleaning file {f}")
+            try:
+                EthereumData().clean_tx(RECORD_PATH + '/txs/' + f)
+            except:
+                print(f"file {f} went wrong")
+
 
 if __name__ == '__main__':
-    EthereumData().run('../records')
+    EthereumData().clean_txs()
+
+    # u = dict()
+    # with open('test_files/block_old.txt') as f:
+    #     while True:
+    #         number = f.readline().split('number=')[1].split(', ')[0]
+    #         if number in u:
+    #             print(number)
+    #         else:
+    #             u[number] = 1
+    #         f.readline()
