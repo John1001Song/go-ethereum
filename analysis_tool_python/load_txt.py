@@ -246,6 +246,8 @@ class EthereumData:
         u = dict()
         rs = ''
         with open(file_path, 'r') as f:
+            if f.name.split('/')[-1].startswith(datetime.now().strftime('%Y-%m-%d')):
+                return
             while True:
                 line = f.readline()
                 if not line:
@@ -258,13 +260,12 @@ class EthereumData:
                     rs += line
                 else:
                     continue
-        with open(file_path.split('.')[0] + '---1.txt', 'w') as f:
+        with open(f"{file_path.split('/txs/')[0]}/txs/cleaned/{file_path.split('/txs/')[1]}", 'w') as f:
             f.write(rs)
 
     @staticmethod
     def clean_txs():
         for f in os.listdir(RECORD_PATH + '/txs'):
-            print(f"Cleaning file {f}")
             try:
                 EthereumData().clean_tx(RECORD_PATH + '/txs/' + f)
             except:
