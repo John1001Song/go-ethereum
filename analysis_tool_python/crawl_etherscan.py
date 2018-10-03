@@ -1,5 +1,6 @@
 import requests
 import json
+import time
 from bs4 import BeautifulSoup
 Soup = BeautifulSoup
 
@@ -10,7 +11,7 @@ def get_etherscan_block_page(block_hash, raw_url):
     url = raw_url.format(block_hash)
     page = requests.get(url)
     # print(page.content)
-    return page.content
+    return page
 
 def get_txs_list_page(url):
     # url example: https://www.etherchain.org/block/6429184
@@ -37,10 +38,10 @@ def parse_txs_list_page_content(page_content):
     # every row with type Tx is a father row
     # read the next row, if the row is not type Tx, then it is the father row's child, add it to father's 'Internal Transactions' list
     father_tx = {}
-    current_tx = {}
     i = 0
     ele_index = 0
     while i < len(rows):
+        current_tx = {}
         cols = rows[i].find_all('td')
         # for ele in cols:
         #     print(ele.contents[0])
@@ -56,21 +57,26 @@ def parse_txs_list_page_content(page_content):
         current_tx['Fee'] = cols[5].contents[0]
         current_tx['Gas Price'] = cols[6].contents[0]
         current_tx['Internal Transactions'] = []
-        # print(current_tx)
         if current_tx['Type'] == 'tx':
             current_tx['Hash'] = f"0x{cols[0].contents[0].get('href').split('/tx/')[1]}"
             current_tx['From'] = f"0x{links[1].get('href').split('/account/')[1]}"
             current_tx['To'] = f"0x{links[2].get('href').split('/account/')[1]}"
 
-            tx_list.append(father_tx)
+            tx_list.append(current_tx)
             father_tx = current_tx
         else:
             # the internal tx hash is not recorded
             # could be update later
-            current_tx['Hash'] = ''
-            current_tx['From'] = f"0x{links[0].get('href').split('/account/')[1]}"
-            current_tx['To'] = f"0x{links[1].get('href').split('/account/')[1]}"
-            father_tx['Internal Transactions'].append(current_tx)
+            try:
+                current_tx['Hash'] = ''
+                current_tx['From'] = f"0x{links[0].get('href').split('/account/')[1]}"
+                current_tx['To'] = f"0x{links[1].get('href').split('/account/')[1]}"
+            except:
+                print(f"Internal tx parse error with type={current_tx['Type']}")
+            if 'Internal Transactions' in father_tx:
+                father_tx['Internal Transactions'].append(current_tx)
+            else:
+                father_tx['Internal Transactions'] = [current_tx]
         i += 1
 
     tx_list = list(filter(None, tx_list))
@@ -78,7 +84,7 @@ def parse_txs_list_page_content(page_content):
     # print(tx_list)
     return tx_list
 
-def parse_block_page_content(page_content):
+def parse_block_page_content(page_content, block_number):
 
     table_dict = {}
     soup = BeautifulSoup(page_content, 'html.parser')
@@ -115,7 +121,7 @@ def parse_block_page_content(page_content):
 
     # process the txs link and get the returned txs list
     # raw_txs_href = table_dict['Transactions']
-    block_height_split_from_txs_href = table_dict['Transactions'].get('href').split('block=')[1]
+    block_height_split_from_txs_href = str(block_number)
     # original key, value in the dict contains the html format symbals
     # example: 'Height': '\n\xa06429184\xa0\xa0\n'
     # so, use the value from txs
@@ -145,10 +151,33 @@ def process_a_block(block_hash):
     json_data = json.dumps(table_dict)
     return json_data
 
-# if __name__ == '__main__':
-#     page_content = get_etherscan_block_page('0x839dcd43aae1908f8c7951c4295748e5186ce38ae94165263865f5bfaf58f076', 'https://etherscan.io/block/{}')
-#     table_dict = parse_block_page_content(page_content)
-#     json_data = json.dumps(table_dict)
-#     print(json_data)
+def json_to_string(json_data):
+    rs = '[2018] [Inserted]'
+    rs += f"Block Hash={json_data['Hash']}, "
+    rs += f"number={json_data['Height']}, "
+    rs += f"parentHash={json_data['Parent Hash']}, "
+    rs += f"uncleHash={json_data['Sha3Uncles']}, "
+    rs += f"timestamp={json_data['TimeStamp'].split('(')[1].split(')')[0]}\n"
+    for tx in json_data['Transactions']:
+        rs += tx['Hash'] + ', '
+    rs += '\n'
+    return rs
+
+def iteration(block_number, saved_file):
+    while True:
+        try:
+            print(f"loading block {block_number}")
+            page = get_etherscan_block_page(str(block_number), 'https://etherscan.io/block/{}')
+            if 'There are no matching entries' in page.text:
+                break
+            with open(f"{saved_file}2018-10-02.txt", 'a') as f:
+                f.write(json_to_string(parse_block_page_content(page.content, block_number)))
+            block_number += 1
+        except:
+            print(f"Exception. Retrying...")
 
 
+if __name__ == '__main__':
+    iteration(6398423, '../records/blocks/canonical/')
+
+# Exception tx: 6355792, 6355801, 6355815
