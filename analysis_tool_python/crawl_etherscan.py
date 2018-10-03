@@ -178,6 +178,6 @@ def iteration(block_number, saved_file):
 
 
 if __name__ == '__main__':
-    iteration(6398423, '../records/blocks/canonical/')
+    iteration(6403385, '../records/blocks/canonical/')
 
 # Exception tx: 6355792, 6355801, 6355815

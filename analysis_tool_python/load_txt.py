@@ -1,7 +1,9 @@
 import random
 import os
 import pickle
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+from backup import backup
+from clean_records import clean_txs
 
 
 RECORD_PATH = '../records'
@@ -17,22 +19,23 @@ class EthereumData:
         self.shard_txs = dict()
         self.num = 0
         self.matched_txs = list()
-        self.unmatched_txs = list()
         self.started_at = datetime.now()
 
     def load_tx(self, path):
-        def parse_new_tx_info(line):
-            return line.split("Hash=")[1].split(', ')[0], {"gas_price": line.split("GasPrice=")[1].split(', ')[0],
-                                                           "max_fee": line.split("MaxFee=")[1].strip("\n")}
-
         def extract_info(line):
-            # New tx has gas info
-            (hash_value, tx) = parse_new_tx_info(line) if "Hash=" in line else (line.split(" ")[-1].strip("\n"), {})
-            tx['created_at'] = line.split(" m=")[0].split('[')[1]
-            if hash_value in self.txs:
-                print(hash_value)
+            # Skip old tx without fee
+            if "MaxFee=" not in line:
+                return
+            hash_value = line.split("Hash=")[1].split(', ')[0]
+            tx = dict()
+            tx["gas_price"] = line.split("GasPrice=")[1].split(', ')[0]
+            tx["max_fee"] = line.split("MaxFee=")[1].strip("\n")
+            created_at = line.split(" m=")[0].strip('[')
+            tx['created_at'] = created_at.split('.')[0] + ' ' + ' '.join(created_at.split(' ')[2:])
             self.txs[hash_value] = tx
 
+        if not path.split('/')[-1].startswith('2018'):
+            return
         with open(path, 'r') as f:
             while True:
                 line = f.readline()
@@ -46,6 +49,7 @@ class EthereumData:
                 except:
                     print(f"Exception at {path}: {line}")
         print(f"Load tx {path} completed. len={len(self.txs)}, it's been {(datetime.now()-self.started_at).seconds} seconds")
+        backup(path, f"{path.split('/2018')[0]}/backup/{path.split('/')[-1]}")
         self.split_txs_into_shards()
 
     def load_block(self, path):
@@ -60,6 +64,8 @@ class EthereumData:
             block['txs'] = [tx for tx in tx_line.strip(", \n").split(', ') if tx]
             self.blocks.append(block)
 
+        if not path.split('/')[-1].startswith('2018') or path.split('/')[-1].startswith('2018-10'):
+            return
         with open(path, 'r') as f:
             while True:
                 block_line = f.readline()
@@ -72,6 +78,7 @@ class EthereumData:
                 except:
                     print(f"Exception at {path}: {block_line}")
         print(f"Load block {path} completed. len={len(self.blocks)}, it's been {(datetime.now()-self.started_at).seconds} seconds")
+        backup(path, f"{path.split('/2018')[0]}/backup/{path.split('/')[-1]}")
 
     def split_txs_into_shards(self):
         print(f"len txs={len(self.txs)}")
@@ -98,20 +105,20 @@ class EthereumData:
     # Match self.shard_txs and self.blocks
     # Pre-work: load tx, load blocks
     def match(self):
-        self.unmatched_txs.clear()
         unique_txs = dict()
+        dup = list()
         for block in self.blocks:
             for tx_hash_value in [copy_tx for copy_tx in block['txs']]:
                 if tx_hash_value in unique_txs:
+                    dup.append(f"{block['number']}-{tx_hash_value}")
                     continue
                 unique_txs[tx_hash_value] = 1
                 block_tx = {'hash': tx_hash_value, 'block_timestamp': block['timestamp']}
                 if self.match_one_tx(block_tx):
                     block['txs'].remove(tx_hash_value)
-                    # print(f"remove {tx_hash_value} from block['txs']")
-                else:
-                    self.unmatched_txs.append(block_tx)
-            # print(block['txs'])
+        print(f"Match finished. Dup: len={len(dup)}")
+        if len(dup) != 0:
+            print(dup)
 
     def match_one_tx(self, block_tx):
         key_1 = block_tx['hash'][-1]
@@ -199,18 +206,30 @@ class EthereumData:
 
         assert len(self.txs) == 0, f"len(txs) = {len(self.txs)} is not 0"
         assert len(self.matched_txs) == 500131, f"len(txs) = {len(self.matched_txs)} is not 500131"
-        assert len(self.unmatched_txs) == 20, f"len(txs) = {len(self.unmatched_txs)} is not 20"
         print(f"Finished. it's been {(datetime.now()-self.started_at).seconds} seconds")
         with open('test_files/matched.txt', 'w') as f:
             for each in self.matched_txs:
                 f.write(str(each) + '\n')
 
-    def run(self, record_path):
+    def save_match(self):
+        rs = ""
+        for tx in self.matched_txs:
+            try:
+                t1 = datetime.strptime(tx['created_at'], '%Y-%m-%d %H:%M:%S %z %Z').replace(tzinfo=None)
+                t2 = datetime.strptime(tx['block_timestamp'], '%b-%d-%Y %I:%M:%S %p +%Z')
+                rs += f"hash={tx['hash']}, gasPrice={tx['gas_price']}, maxFee={tx['max_fee']}, timeDelta={(t2-t1).seconds}\n"
+            except:
+                print(tx)
+        self.matched_txs.clear()
+        with open(RECORD_PATH + '/matched/' + datetime.now().strftime('%Y-%m-%d_%H:%M') + '.txt', 'w') as f:
+            f.write(rs)
+
+    def run(self):
         started_at = datetime.now()
-        [self.load_tx(record_path + '/txs/' + file) for file in os.listdir(record_path + '/txs')]
-        [self.load_block(record_path + '/blocks/' + file) for file in os.listdir(record_path + '/blocks')]
-        pickle.dump(self, open('save_' + datetime.now().strftime('%Y-%m-%d-%H-%M') + '.p', 'wb'))
-        # self = pickle.load(open('save_2018-10-01-10-50.p', 'rb'))
+        self = pickle.load(open('save_2018-10-03_10:00.p', 'rb'))
+        clean_txs()
+        [self.load_tx(RECORD_PATH + '/txs/cleaned/' + file) for file in os.listdir(RECORD_PATH + '/txs/cleaned/')]
+        [self.load_block(RECORD_PATH + '/blocks/canonical/' + file) for file in os.listdir(RECORD_PATH + '/blocks/canonical/')]
 
         num, dup = self.count_tx_in_block(self.blocks)
         print(f"Original status: \nCount tx in block: num={num}, dup={dup}")
@@ -219,38 +238,17 @@ class EthereumData:
 
         self.match()
 
-        print(f"matched_txs={len(self.matched_txs)}, unmatched={len(self.unmatched_txs)}")
+        print(f"matched_txs={len(self.matched_txs)}")
         num, dup = self.count_tx_in_block(self.blocks)
         print(f"Remaining: \nCount tx in block: num={num}, dup={dup}")
         num = self.count_shard_tx(self.shard_txs)
         print(f"Count shard_tx: num={num}")
         print(f"Finished. it's been {(datetime.now()-started_at).seconds} seconds")
 
-    def find_3_way_fork(self, record_path):
-        # [self.load_block(record_path + '/blocks/' + file) for file in os.listdir(record_path + '/blocks')]
-        self.load_block('test_files/2018-10-01.txt')
-        u = dict()
-        for block in self.blocks:
-            number = block['number']
-            h = block['hash']
-            p = block['parentHash']
-            if number in u and u[number]['hash'] != h and u[number]['parentHash'] != p:
-                u[number]['num'] += 1
-                if u[number]['num'] > 2:
-                    print(number)
-            else:
-                u[number] = {'num': 1, 'hash': h, 'parentHash': p}
+        self.save_match()
+
+        pickle.dump(self, open('save_' + datetime.now().strftime('%Y-%m-%d_%H:%M') + '.p', 'wb'))
 
 
 if __name__ == '__main__':
-    EthereumData().clean_txs()
-
-    # u = dict()
-    # with open('test_files/block_old.txt') as f:
-    #     while True:
-    #         number = f.readline().split('number=')[1].split(', ')[0]
-    #         if number in u:
-    #             print(number)
-    #         else:
-    #             u[number] = 1
-    #         f.readline()
+    EthereumData().run()
