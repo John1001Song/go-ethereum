@@ -3,7 +3,7 @@ import os
 import pickle
 from datetime import datetime, timezone, timedelta
 from backup import backup
-from clean_records import clean_txs
+import clean_records
 
 
 RECORD_PATH = '../records'
@@ -221,16 +221,17 @@ class EthereumData:
             except:
                 print(tx)
         self.matched_txs.clear()
-        with open(RECORD_PATH + '/matched/' + datetime.now().strftime('%Y-%m-%d_%H:%M') + '.txt', 'w') as f:
+        with open(RECORD_PATH + '/matched/' + datetime.now().strftime('%Y-%m-%d_%H_%M') + '.txt', 'w') as f:
             f.write(rs)
 
     def run(self):
         started_at = datetime.now()
-        self = pickle.load(open('save_2018-10-03_10:00.p', 'rb'))
-        clean_txs()
+        self = pickle.load(open('save_2018-10-03.p', 'rb'))
+        clean_records.clean_txs()
         [self.load_tx(RECORD_PATH + '/txs/cleaned/' + file) for file in os.listdir(RECORD_PATH + '/txs/cleaned/')]
         [self.load_block(RECORD_PATH + '/blocks/canonical/' + file) for file in os.listdir(RECORD_PATH + '/blocks/canonical/')]
 
+        return
         num, dup = self.count_tx_in_block(self.blocks)
         print(f"Original status: \nCount tx in block: num={num}, dup={dup}")
         num = self.count_shard_tx(self.shard_txs)
