@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 from load_txt import RECORD_PATH
+from backup import backup
 
 
 def clean_tx(file_path):
@@ -60,7 +61,9 @@ def clean_txs():
         if not f.startswith('2018'):
             continue
         try:
-            clean_tx(RECORD_PATH + '/txs/' + f)
+            file_path = RECORD_PATH + '/txs/' + f
+            clean_tx(file_path)
+            backup(file_path, RECORD_PATH + '/txs/backup/' + f)
         except:
             print(f"file {f} went wrong")
 
