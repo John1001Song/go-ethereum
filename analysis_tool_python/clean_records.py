@@ -1,7 +1,9 @@
 import os
 from datetime import datetime
-from load_txt import RECORD_PATH
 from backup import backup
+
+
+RECORD_PATH = '../records'
 
 
 def clean_tx(file_path):
