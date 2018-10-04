@@ -33,7 +33,7 @@ def clean_tx(file_path):
         return
     with open(f"{file_path.split('/txs/')[0]}/txs/cleaned/{file_path.split('/txs/')[1]}", 'w') as f:
         f.write(rs)
-    backup(file_path, RECORD_PATH + '/txs/backup/' + f)
+    backup(RECORD_PATH + '/txs/' + f, RECORD_PATH + '/txs/backup/' + f)
 
 
 def try_parse_date(line):
