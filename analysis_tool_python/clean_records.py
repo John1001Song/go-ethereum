@@ -33,6 +33,7 @@ def clean_tx(file_path):
         return
     with open(f"{file_path.split('/txs/')[0]}/txs/cleaned/{file_path.split('/txs/')[1]}", 'w') as f:
         f.write(rs)
+    backup(file_path, RECORD_PATH + '/txs/backup/' + f)
 
 
 def try_parse_date(line):
@@ -65,7 +66,6 @@ def clean_txs():
         try:
             file_path = RECORD_PATH + '/txs/' + f
             clean_tx(file_path)
-            backup(file_path, RECORD_PATH + '/txs/backup/' + f)
         except:
             print(f"file {f} went wrong")
 
