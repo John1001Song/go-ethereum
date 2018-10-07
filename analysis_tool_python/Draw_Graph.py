@@ -5,6 +5,7 @@ import csv
 from pathlib import Path
 from os.path import isfile, join
 from os import listdir
+from pandas.plotting import scatter_matrix
 
 MATCH_FILE_PATH = '.'
 
@@ -16,6 +17,9 @@ class Painter:
         self.txs_counter = 0
         self.raw_file_array = []
         self.csv_file_array = []
+        self.stats_maxFee = dict()
+        self.stats_gasPrice = dict()
+        self.stats_timeDelta = dict()
 
 # process the raw data into csv
 # example
@@ -83,30 +87,96 @@ class Painter:
             self.csv_file_array.append(csv_file_name)
             self.save_dataset_to_csv(csv_file_name)
 
-    def pandas_process_csv(self, csv_file):
-        df = pd.read_csv(csv_file)
-        # print(df)
-        # max_fee_mean = df['maxFee'].mean()
+    def get_set_element_stats(self, df, element, self_stats_element):
+        mean = df[element].mean()
         # print("all txs maxFee mean: ", max_fee_mean)
-        max_fee_median = df['maxFee'].median()
-        print('all txs maxFee median: ', max_fee_median)
-        max_fee_var = df['maxFee'].var()
-        print('all txs maxFee variance: ', max_fee_var)
-        # max_fee_min = df['maxFee'].min()
+        median = df[element].median()
+        # print('all txs maxFee median: ', max_fee_median)
+        var = df[element].var()
+        # print('all txs maxFee variance: ', max_fee_var)
+        min = df[element].min()
         # print('all txs maxFee min: ', max_fee_min)
-        # max_fee_max = df['maxFee'].max()
+        max = df[element].max()
         # print('all txs maxFee max: ', max_fee_max)
-        max_fee_mode = df['maxFee'].mode()
-        print('all txs maxFee mode: ', max_fee_mode)
-        max_fee_res = pd.Series(df['maxFee'])
-        print(max_fee_res.describe())
+        mode = df[element].mode()
+        # print('all txs maxFee mode: ', max_fee_mode)
+        # built in func Series shows the important stats values
+        series = pd.Series(df[element])
+        # print(max_fee_res.describe())
+        self_stats_element['mean'] = mean
+        self_stats_element['median'] = median
+        self_stats_element['variance'] = var
+        self_stats_element['mode'] = mode
+        self_stats_element['min'] = min
+        self_stats_element['max'] = max
+        self_stats_element['series'] = series.describe()
+
+    def pandas_process_csv(self, csv_file):
+        df = pd.read_csv(csv_file, low_memory=False)
+        # print(df)
+        self.get_set_element_stats(df, 'maxFee', self.stats_maxFee)
+        print(self.stats_maxFee)
+        self.get_set_element_stats(df, 'gasPrice', self.stats_gasPrice)
+        print(self.stats_gasPrice)
+        self.get_set_element_stats(df, 'timeDelta', self.stats_timeDelta)
+        print(self.stats_timeDelta)
+
+        return df
+
+    def draw(self, df, element_x, element_y, col_name_list):
+        # ts = pd.Series(df[element_y], df[element_x])
+        # ts.plot()
+        # df.plot(x=element_x, y=element_y, style='.')
+        newDF = df.loc[:, col_name_list]
+
+        # direct plot the two columns
+        plt.plot(newDF[element_x], newDF[element_y], '.')
+        plt.title("Fee and Time")
+        # plt.axis()
+        plt.xlabel(element_x)
+        plt.ylabel(element_y)
+
+        # draw the correlation
+        correlations = newDF.corr()
+        fig = plt.figure()
+        fig.suptitle('Correlation')
+        ax = fig.add_subplot(111)
+        cax = ax.matshow(correlations, vmin=-1, vmax=1)
+        fig.colorbar(cax)
+        ticks = np.arange(0, 3, 1)
+        ax.set_xticks(ticks)
+        ax.set_yticks(ticks)
+        ax.set_xticklabels(col_name_list)
+        ax.set_yticklabels(col_name_list)
+
+        # scatter_matrix(newDF)
+        # draw the histogram
+        df.hist()
+        plt.suptitle('Histogram')
+
+        # draw the density
+        df.plot(kind='density', subplots=True, sharex=False, sharey=False)
+        plt.suptitle('Density')
+
+        # draw the box
+        df.plot(kind='box', subplots=True, sharex=False, sharey=False)
+        plt.suptitle('Box')
+
+        plt.show()
+
+
+    def save_analysis_result(self):
+        pass
 
     def run(self):
         # self.prepare_dataset()
+        self.load_raw_data('.')
 
         # pandas load the csv
-        self.pandas_process_csv('2018-10-06.csv')
+        df = self.pandas_process_csv('2018-10-04.csv')
 
+        col_name_list = ['gasPrice', 'maxFee', 'timeDelta']
+        self.draw(df, 'maxFee', 'timeDelta', col_name_list)
         # draw the graph
 
 
