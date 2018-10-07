@@ -145,10 +145,11 @@ def process_a_block(block_hash):
     json_data = json.dumps(table_dict)
     return json_data
 
-# if __name__ == '__main__':
-#     page_content = get_etherscan_block_page('0x839dcd43aae1908f8c7951c4295748e5186ce38ae94165263865f5bfaf58f076', 'https://etherscan.io/block/{}')
-#     table_dict = parse_block_page_content(page_content)
-#     json_data = json.dumps(table_dict)
-#     print(json_data)
+if __name__ == '__main__':
+    page_content = get_etherscan_block_page('0x839dcd43aae1908f8c7951c4295748e5186ce38ae94165263865f5bfaf58f076', 'https://etherscan.io/block/{}')
+    table_dict = parse_block_page_content(page_content)
+    print(table_dict)
+    json_data = json.dumps(table_dict)
+    print(json_data)
 
 
