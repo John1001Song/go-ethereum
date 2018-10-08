@@ -2,12 +2,14 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import csv
+import os
 from pathlib import Path
-from os.path import isfile, join
+from os.path import isfile, join, realpath
 from os import listdir
 from pandas.plotting import scatter_matrix
 
-MATCH_FILE_PATH = '.'
+MATCH_FILE_PATH = './data_source_txt/'
+CSV_PATH = './data_source_csv/'
 
 class Painter:
     def __init__(self):
@@ -42,7 +44,9 @@ class Painter:
             tx['timeDelta'] = timeDelta
             self.dataset.append(tx)
 
-        with open(path, 'r') as f:
+        __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+
+        with open(os.path.join(__location__, path), 'r') as f:
             while True:
                 line = f.readline()
                 self.txs_counter += 1
@@ -77,15 +81,22 @@ class Painter:
 
         return name_array
 
+    def reset_Painter(self):
+        self.__init__()
+
     def prepare_dataset(self):
         # prepare the dataset
         self.raw_file_array = self.get_all_file_name(MATCH_FILE_PATH)
+        # print(self.raw_file_array)
 
         for file_name in self.raw_file_array:
-            self.load_raw_data(file_name)
+            txt_path = MATCH_FILE_PATH.__add__(file_name)
             csv_file_name = '{}.csv'.format(file_name.split('.txt')[0])
+            csv_path = CSV_PATH.__add__(csv_file_name)
+            self.load_raw_data(txt_path)
             self.csv_file_array.append(csv_file_name)
-            self.save_dataset_to_csv(csv_file_name)
+            self.save_dataset_to_csv(csv_path)
+            self.reset_Painter()
 
     def get_set_element_stats(self, df, element, self_stats_element):
         mean = df[element].mean()
@@ -170,10 +181,11 @@ class Painter:
 
     def run(self):
         # self.prepare_dataset()
-        self.load_raw_data('.')
+        self.prepare_dataset()
 
         # pandas load the csv
-        df = self.pandas_process_csv('2018-10-04.csv')
+        # df = self.pandas_process_csv('2018-10-06.csv')
+        df = self.pandas_process_csv(CSV_PATH.__add__('2018-10-04.csv'))
 
         col_name_list = ['gasPrice', 'maxFee', 'timeDelta']
         self.draw(df, 'maxFee', 'timeDelta', col_name_list)
