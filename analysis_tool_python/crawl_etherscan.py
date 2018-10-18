@@ -151,16 +151,14 @@ def process_a_block(block_hash):
     json_data = json.dumps(table_dict)
     return json_data
 
-<<<<<<< HEAD
-if __name__ == '__main__':
-    page_content = get_etherscan_block_page('0x839dcd43aae1908f8c7951c4295748e5186ce38ae94165263865f5bfaf58f076', 'https://etherscan.io/block/{}')
-    table_dict = parse_block_page_content(page_content)
-    print(table_dict)
-    json_data = json.dumps(table_dict)
-    print(json_data)
+# if __name__ == '__main__':
+#     page_content = get_etherscan_block_page('0x839dcd43aae1908f8c7951c4295748e5186ce38ae94165263865f5bfaf58f076', 'https://etherscan.io/block/{}')
+#     table_dict = parse_block_page_content(page_content)
+#     print(table_dict)
+#     json_data = json.dumps(table_dict)
+#     print(json_data)
 
 
-=======
 def json_to_string(json_data):
     rs = '[2018] [Inserted]'
     rs += f"Block Hash={json_data['Hash']}, "
@@ -191,4 +189,3 @@ if __name__ == '__main__':
     iteration(6398423, '../records/blocks/canonical/')
 
 # Exception tx: 6355792, 6355801, 6355815
->>>>>>> 0e4048e032a514021151d6ff65c3ba79fbc96cf9
