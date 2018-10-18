@@ -84,7 +84,8 @@ def parse_txs_list_page_content(page_content):
     # print(tx_list)
     return tx_list
 
-def parse_block_page_content(page_content, block_number):
+# def parse_block_page_content(page_content, block_number):
+def parse_block_page_content(page_content):
 
     table_dict = {}
     soup = BeautifulSoup(page_content, 'html.parser')
@@ -151,41 +152,41 @@ def process_a_block(block_hash):
     json_data = json.dumps(table_dict)
     return json_data
 
-# if __name__ == '__main__':
-#     page_content = get_etherscan_block_page('0x839dcd43aae1908f8c7951c4295748e5186ce38ae94165263865f5bfaf58f076', 'https://etherscan.io/block/{}')
-#     table_dict = parse_block_page_content(page_content)
-#     print(table_dict)
-#     json_data = json.dumps(table_dict)
-#     print(json_data)
-
-
-def json_to_string(json_data):
-    rs = '[2018] [Inserted]'
-    rs += f"Block Hash={json_data['Hash']}, "
-    rs += f"number={json_data['Height']}, "
-    rs += f"parentHash={json_data['Parent Hash']}, "
-    rs += f"uncleHash={json_data['Sha3Uncles']}, "
-    rs += f"timestamp={json_data['TimeStamp'].split('(')[1].split(')')[0]}\n"
-    for tx in json_data['Transactions']:
-        rs += tx['Hash'] + ', '
-    rs += '\n'
-    return rs
-
-def iteration(block_number, saved_file):
-    while True:
-        try:
-            print(f"loading block {block_number}")
-            page = get_etherscan_block_page(str(block_number), 'https://etherscan.io/block/{}')
-            if 'There are no matching entries' in page.text:
-                break
-            with open(f"{saved_file}2018-10-02.txt", 'a') as f:
-                f.write(json_to_string(parse_block_page_content(page.content, block_number)))
-            block_number += 1
-        except:
-            print(f"Exception. Retrying...")
-
-
 if __name__ == '__main__':
-    iteration(6398423, '../records/blocks/canonical/')
+    page_content = get_etherscan_block_page('0x839dcd43aae1908f8c7951c4295748e5186ce38ae94165263865f5bfaf58f076', 'https://etherscan.io/block/{}')
+    table_dict = parse_block_page_content(page_content)
+    print(table_dict)
+    json_data = json.dumps(table_dict)
+    print(json_data)
+
+
+# def json_to_string(json_data):
+#     rs = '[2018] [Inserted]'
+#     rs += f"Block Hash={json_data['Hash']}, "
+#     rs += f"number={json_data['Height']}, "
+#     rs += f"parentHash={json_data['Parent Hash']}, "
+#     rs += f"uncleHash={json_data['Sha3Uncles']}, "
+#     rs += f"timestamp={json_data['TimeStamp'].split('(')[1].split(')')[0]}\n"
+#     for tx in json_data['Transactions']:
+#         rs += tx['Hash'] + ', '
+#     rs += '\n'
+#     return rs
+
+# def iteration(block_number, saved_file):
+#     while True:
+#         try:
+#             print(f"loading block {block_number}")
+#             page = get_etherscan_block_page(str(block_number), 'https://etherscan.io/block/{}')
+#             if 'There are no matching entries' in page.text:
+#                 break
+#             with open(f"{saved_file}2018-10-02.txt", 'a') as f:
+#                 f.write(json_to_string(parse_block_page_content(page.content, block_number)))
+#             block_number += 1
+#         except:
+#             print(f"Exception. Retrying...")
+
+
+# if __name__ == '__main__':
+#     iteration(6398423, '../records/blocks/canonical/')
 
 # Exception tx: 6355792, 6355801, 6355815
