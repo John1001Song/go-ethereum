@@ -3,7 +3,6 @@ import os
 import pickle
 from datetime import datetime, timezone, timedelta
 from backup import backup
-import clean_records
 
 
 RECORD_PATH = '../records'
@@ -64,7 +63,7 @@ class EthereumData:
             block['txs'] = [tx for tx in tx_line.strip(", \n").split(', ') if tx]
             self.blocks.append(block)
 
-        if not path.split('/')[-1].startswith('2018') or path.split('/')[-1].startswith('2018-10'):
+        if not path.split('/')[-1].startswith('2018'):
             return
         with open(path, 'r') as f:
             while True:
@@ -213,6 +212,7 @@ class EthereumData:
 
     def save_match(self):
         rs = ""
+        except_txs = list()
         for tx in self.matched_txs:
             try:
                 t1 = datetime.strptime(tx['created_at'], '%Y-%m-%d %H:%M:%S %z %Z').replace(tzinfo=None)
@@ -220,18 +220,29 @@ class EthereumData:
                 rs += f"hash={tx['hash']}, gasPrice={tx['gas_price']}, maxFee={tx['max_fee']}, timeDelta={(t2-t1).seconds}\n"
             except:
                 print(tx)
-        self.matched_txs.clear()
+                print(f"Might be that the created_at is in wrong format. Please enter the correct created_at:")
+                try:
+                    t1 = datetime.strptime(input(), '%Y-%m-%d %H:%M:%S %z %Z').replace(tzinfo=None)
+                    t2 = datetime.strptime(tx['block_timestamp'], '%b-%d-%Y %I:%M:%S %p +%Z')
+                    rs += f"hash={tx['hash']}, gasPrice={tx['gas_price']}, maxFee={tx['max_fee']}, timeDelta={(t2-t1).seconds}\n"
+                except:
+                    print("Still not able to fix it. Except this one.")
+
+        self.matched_txs = except_txs
         with open(RECORD_PATH + '/matched/' + datetime.now().strftime('%Y-%m-%d_%H_%M') + '.txt', 'w') as f:
             f.write(rs)
 
     def run(self):
-        started_at = datetime.now()
-        self = pickle.load(open('save_2018-10-03.p', 'rb'))
-        clean_records.clean_txs()
+        self = pickle.load(open('save_2018-10-06.p', 'rb'))
+        num, dup = self.count_tx_in_block(self.blocks)
+        print(f"Initial status: \nCount tx in block: num={num}, dup={dup}")
+        num = self.count_shard_tx(self.shard_txs)
+        print(f"Count shard_tx: num={num}")
+
+        self.started_at = datetime.now()
         [self.load_tx(RECORD_PATH + '/txs/cleaned/' + file) for file in os.listdir(RECORD_PATH + '/txs/cleaned/')]
         [self.load_block(RECORD_PATH + '/blocks/canonical/' + file) for file in os.listdir(RECORD_PATH + '/blocks/canonical/')]
 
-        return
         num, dup = self.count_tx_in_block(self.blocks)
         print(f"Original status: \nCount tx in block: num={num}, dup={dup}")
         num = self.count_shard_tx(self.shard_txs)
@@ -244,11 +255,12 @@ class EthereumData:
         print(f"Remaining: \nCount tx in block: num={num}, dup={dup}")
         num = self.count_shard_tx(self.shard_txs)
         print(f"Count shard_tx: num={num}")
-        print(f"Finished. it's been {(datetime.now()-started_at).seconds} seconds")
+        print(f"Finished matching. it's been {(datetime.now()-self.started_at).seconds} seconds")
 
         self.save_match()
 
         pickle.dump(self, open('save_' + datetime.now().strftime('%Y-%m-%d_%H:%M') + '.p', 'wb'))
+        print(f"Finished saving. it's been {(datetime.now()-self.started_at).seconds} seconds")
 
 
 if __name__ == '__main__':

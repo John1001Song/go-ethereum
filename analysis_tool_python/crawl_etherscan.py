@@ -1,7 +1,7 @@
 import requests
 import json
-import time
 from bs4 import BeautifulSoup
+from datetime import datetime
 Soup = BeautifulSoup
 
 def get_etherscan_block_page(block_hash, raw_url):
@@ -49,7 +49,6 @@ def parse_txs_list_page_content(page_content):
 
         # get all href links on this row
         links = rows[i].find_all('a')
-
         current_tx['Type'] = cols[1].contents[0]
         # current_tx['From'] = cols[2].contents[0].get('href').split('/account/')[1]
         # current_tx['To'] = cols[3].contents[0]
@@ -83,6 +82,7 @@ def parse_txs_list_page_content(page_content):
     
     # print(tx_list)
     return tx_list
+
 
 def parse_block_page_content(page_content, block_number):
 
@@ -164,20 +164,25 @@ def json_to_string(json_data):
     return rs
 
 def iteration(block_number, saved_file):
+    started_at = datetime.now()
+    i = 0
     while True:
         try:
             print(f"loading block {block_number}")
             page = get_etherscan_block_page(str(block_number), 'https://etherscan.io/block/{}')
             if 'There are no matching entries' in page.text:
                 break
-            with open(f"{saved_file}2018-10-02.txt", 'a') as f:
+            with open(f"{saved_file}{datetime.now().strftime('%Y-%m-%d')}.txt", 'a') as f:
                 f.write(json_to_string(parse_block_page_content(page.content, block_number)))
             block_number += 1
+            i += 1
+            print(f"Average time for {i} blocks: {((datetime.now()-started_at).seconds) / i} seconds")
         except:
             print(f"Exception. Retrying...")
 
 
+
 if __name__ == '__main__':
-    iteration(6447413, '../records/blocks/canonical/')
+    iteration(6546781, '../records/blocks/canonical/')
 
 # Exception tx: 6355792, 6355801, 6355815
