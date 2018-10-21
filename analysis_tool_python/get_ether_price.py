@@ -21,7 +21,7 @@ class EtherPrice:
             return
         with open(self.path + file, 'r+') as f:
             print("cleaning file: " + file)
-
+            
             lines = f.readlines()
             for line in lines:
                 if ("CoinDesk" in line) or ("coindesk" in line):
@@ -34,7 +34,7 @@ class EtherPrice:
         if not ('.csv' in file):
             return
         print(file)
-        data = pd.read_csv(self.path+file)
+        data = pd.read_csv(self.path + file)
         for i, row in data.iterrows():
             try:
                 current_datetime = datetime.strptime(row['Date'], '%Y/%m/%d %H:%M')
