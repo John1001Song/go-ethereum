@@ -181,8 +181,8 @@ def iteration(block_number, saved_file):
             print(f"Exception. Retrying...")
 
 
-
 if __name__ == '__main__':
-    iteration(6546781, '../records/blocks/canonical/')
+    # iteration(6546781, '../records/blocks/canonical/') AWS saved state
+    iteration(6606556, '../records/blocks/canonical/')  # Ali cloud
 
 # Exception tx: 6355792, 6355801, 6355815
