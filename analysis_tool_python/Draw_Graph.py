@@ -7,9 +7,13 @@ from pathlib import Path
 from os.path import isfile, join, realpath
 from os import listdir
 from pandas.plotting import scatter_matrix
+from matplotlib.ticker import MultipleLocator, FormatStrFormatter
+from pylab import *
 
-MATCH_FILE_PATH = './data_source_txt/'
-CSV_PATH = './data_source_csv/'
+
+
+MATCH_FILE_PATH = '../records/matched/'
+CSV_PATH = '../records/matched/'
 
 class Painter:
     def __init__(self):
@@ -20,6 +24,7 @@ class Painter:
         self.raw_file_array = []
         self.csv_file_array = []
         self.stats_maxFee = dict()
+        self.stats_dollarFee = dict()
         self.stats_gasPrice = dict()
         self.stats_timeDelta = dict()
 
@@ -33,6 +38,7 @@ class Painter:
             hash_value = line.split('hash=')[1].split(', ')[0]
             gasPrice = line.split('gasPrice=')[1].split(', ')[0]
             maxFee = line.split('maxFee=')[1].split(', ')[0]
+            dollarFee = line.split('dollarFee=')[1].split(', ')[0]
             timeDelta = line.split('timeDelta=')[1].strip("\n")
             # print(hash_value)
             # print(gasPrice)
@@ -41,6 +47,7 @@ class Painter:
             tx['hash'] = hash_value
             tx['gasPrice'] = gasPrice
             tx['maxFee'] = maxFee
+            tx['dollarFee'] = dollarFee
             tx['timeDelta'] = timeDelta
             self.dataset.append(tx)
 
@@ -61,7 +68,7 @@ class Painter:
 
     def save_dataset_to_csv(self, file_name_csv):
         with open(file_name_csv, 'w') as f:
-            field_names = ('hash', 'gasPrice', 'maxFee', 'timeDelta')
+            field_names = ('hash', 'gasPrice', 'maxFee', 'dollarFee', 'timeDelta')
             writer = csv.DictWriter(f, fieldnames=field_names)
             writer.writeheader()
 
@@ -90,6 +97,8 @@ class Painter:
         # print(self.raw_file_array)
 
         for file_name in self.raw_file_array:
+            if not file_name.startswith('2018-10-29_10_41'):
+                continue
             txt_path = MATCH_FILE_PATH.__add__(file_name)
             csv_file_name = '{}.csv'.format(file_name.split('.txt')[0])
             csv_path = CSV_PATH.__add__(csv_file_name)
@@ -127,6 +136,8 @@ class Painter:
         # print(df)
         self.get_set_element_stats(df, 'maxFee', self.stats_maxFee)
         print(self.stats_maxFee)
+        self.get_set_element_stats(df, 'dollarFee', self.stats_dollarFee)
+        print(self.stats_dollarFee)
         self.get_set_element_stats(df, 'gasPrice', self.stats_gasPrice)
         print(self.stats_gasPrice)
         self.get_set_element_stats(df, 'timeDelta', self.stats_timeDelta)
@@ -147,6 +158,7 @@ class Painter:
         plt.xlabel(element_x)
         plt.ylabel(element_y)
 
+        '''
         # draw the correlation
         correlations = newDF.corr()
         fig = plt.figure()
@@ -172,6 +184,7 @@ class Painter:
         # draw the box
         df.plot(kind='box', subplots=True, sharex=False, sharey=False)
         plt.suptitle('Box')
+        '''
 
         plt.show()
 
@@ -180,15 +193,28 @@ class Painter:
         pass
 
     def run(self):
-        # self.prepare_dataset()
         self.prepare_dataset()
+        a = ['2018-10-29_10_41.csv']
 
         # pandas load the csv
-        # df = self.pandas_process_csv('2018-10-06.csv')
-        df = self.pandas_process_csv(CSV_PATH.__add__('2018-10-04.csv'))
+        col_name_list = ['gasPrice', 'maxFee', 'dollarFee', 'timeDelta']
+        for filename in a:
+            print(filename)
+            df = self.pandas_process_csv(CSV_PATH + filename)
+            newDF = df.loc[:, col_name_list]
+            ax = subplot(111)
+            plt.plot(newDF['maxFee'], newDF['timeDelta'], '.')
+            plt.title("Fee and Time")
+            plt.xlabel('maxFee')
+            plt.ylabel('timeDelta')
+            plt.subplots_adjust(bottom=0.1)
+        plt.show()
 
-        col_name_list = ['gasPrice', 'maxFee', 'timeDelta']
-        self.draw(df, 'maxFee', 'timeDelta', col_name_list)
+        # print('000')
+        # self.draw(df, 'maxFee', 'timeDelta', col_name_list)
+        # print(111)
+        # self.draw(df, 'dollarFee', 'timeDelta', col_name_list)
+        # print(222)
         # draw the graph
 
 
