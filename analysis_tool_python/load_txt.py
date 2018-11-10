@@ -22,7 +22,7 @@ class EthereumData:
         self.matched_txs = list()
         self.started_at = datetime.now()
 
-    def load_tx(self, path, ifBack=True):
+    def load_tx(self, path, ifBack=False):
         def extract_info(line):
             # Skip old tx without fee
             if "MaxFee=" not in line:
@@ -54,7 +54,7 @@ class EthereumData:
             backup(path, f"{path.split('/2018')[0]}/backup/{path.split('/')[-1]}")
         self.split_txs_into_shards()
 
-    def load_block(self, path, ifBack=True):
+    def load_block(self, path, ifBack=False):
         def extract_info(block_line, tx_line):
             block = dict()
             block['received_status'] = block_line.split('Block Hash')[0].split('[')[-1].split(']')[0]
@@ -297,17 +297,17 @@ class EthereumData:
 
 
 if __name__ == '__main__':
-    # EthereumData().run()
-    a1 = '2018-10-29 04:50:08 +0800'
-    a2 = 'Oct-29-2018 04:23:42 PM +UTC'
-    t1 = datetime.strptime(a1, '%Y-%m-%d %H:%M:%S %z')
-    print('====')
-    print(t1)
-    t1 = t1.astimezone(timezone(timedelta(hours=0))).replace(tzinfo=None)
-    print(t1)
-    t2 = datetime.strptime(a2, '%b-%d-%Y %I:%M:%S %p +%Z')
-    print(f"====\n{t2}")
-    t2 = t2.replace(tzinfo=None)
-    print(t2)
-    print(t1 < t2)
-    print((t2-t1).seconds)
+    EthereumData().run()
+    # a1 = '2018-10-29 04:50:08 +0800'
+    # a2 = 'Oct-29-2018 04:23:42 PM +UTC'
+    # t1 = datetime.strptime(a1, '%Y-%m-%d %H:%M:%S %z')
+    # print('====')
+    # print(t1)
+    # t1 = t1.astimezone(timezone(timedelta(hours=0))).replace(tzinfo=None)
+    # print(t1)
+    # t2 = datetime.strptime(a2, '%b-%d-%Y %I:%M:%S %p +%Z')
+    # print(f"====\n{t2}")
+    # t2 = t2.replace(tzinfo=None)
+    # print(t2)
+    # print(t1 < t2)
+    # print((t2-t1).seconds)

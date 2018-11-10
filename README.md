@@ -1,3 +1,23 @@
+## CS690 Master Project
+
+## Do the routine matching:
+
+1. Log in to AWS
+2. Go to cs690/go-ethereum/analysis-tool-python
+3. Run python3 clean_records.py
+4. If cleaning said date format is wrong, go to go-ethereum/records/txs, open the file, change the wrong format(usually just use the previous line's timestamp). You can vi the file, click '/', paste the hash value, hit the button, then VI would locate that line. 
+5. clean_records.py would clean the duplicate txs of all txs.txt until yesterday, move all cleaned files to backup folder, and leave the cleaned ones in records/txs/cleaned.
+6. Scp all cleaned files to local. Here's the command: 
+scp -i "~/.ssh/cs690ethereum.pem" ubuntu@ec2-18-144-14-139.us-west-1.compute.amazonaws.com:/home/ubuntu/cs690/go-ethereum/records/txs/cleaned/* ~/charles/university/Master\ Project/go-ethereum/records/txs/cleaned/\
+Scp files from aliyun is different with aws.\
+scp root@120.77.253.57:/file_path/ /my_local_path\
+Then, input the password. "120.77.253.57" is the public address of the instance.\
+One more thing about how to log in ali instance via ssh in terminal\
+ssh root@120.77.253.57 
+
+7. Change the path of last saved object, run load_txt.py on local machine. 
+8. On AWS, move all txs.txt at records/txs/cleaned/ to records/txs/cleaned/backup.
+
 ## Go Ethereum
 
 Customized by Charles Ge and Jinyue Song
