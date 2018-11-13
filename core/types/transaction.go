@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"fmt"
 )
 
 //go:generate gencodec -type txdata -field-override txdataMarshaling -out gen_tx_json.go
@@ -187,6 +188,8 @@ func (tx *Transaction) To() *common.Address {
 func (tx *Transaction) From() string {
 	addr, err := recoverPlain(Hash(tx), tx.data.R, tx.data.S, tx.data.V, true)
 	if err != nil {
+		fmt.Println("An error in Tx.From()")
+		fmt.Println(err)
 		return ""
 	}
 	return addr.String()
