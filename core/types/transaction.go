@@ -186,6 +186,11 @@ func (tx *Transaction) To() *common.Address {
 	return &to
 }
 
+func (tx *Transaction) From() common.Address {
+	from := tx.from.Load()
+	return from.(common.Address)
+}
+
 // Hash hashes the RLP encoding of tx.
 // It uniquely identifies the transaction.
 func (tx *Transaction) Hash() common.Hash {
