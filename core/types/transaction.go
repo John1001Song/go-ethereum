@@ -187,7 +187,20 @@ func (tx *Transaction) To() *common.Address {
 }
 
 func (tx *Transaction) From() {
-	fmt.Println(tx.from)
+	addr, _ := recoverPlain(Hash(tx), tx.data.R, tx.data.S, tx.data.V, true)
+	fmt.Println("This is transaction.from()")
+	fmt.Println(addr)
+}
+
+func Hash(tx *Transaction) common.Hash {
+	return rlpHash([]interface{}{
+		tx.data.AccountNonce,
+		tx.data.Price,
+		tx.data.GasLimit,
+		tx.data.Recipient,
+		tx.data.Amount,
+		tx.data.Payload,
+	})
 }
 
 // Hash hashes the RLP encoding of tx.
