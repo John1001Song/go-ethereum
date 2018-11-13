@@ -187,17 +187,8 @@ func (tx *Transaction) To() *common.Address {
 }
 
 func (tx *Transaction) From() string {
-	if tx == nil {
-		fmt.Println("Tx is nil")
-		return ""
-	} else if unsafe.Sizeof(tx.data) == 0 {
-		fmt.Println("Tx.data is empty")
-		return ""
-	}
 	addr, err := recoverPlain(Hash(tx), tx.data.R, tx.data.S, tx.data.V, true)
 	if err != nil {
-		fmt.Println("An error in Tx.From()")
-		fmt.Println(err)
 		return ""
 	}
 	return addr.String()
