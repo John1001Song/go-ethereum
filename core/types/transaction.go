@@ -189,6 +189,7 @@ func (tx *Transaction) To() *common.Address {
 func (tx *Transaction) From() {
 	addr, _ := recoverPlain(Hash(tx), tx.data.R, tx.data.S, tx.data.V, true)
 	fmt.Println("This is transaction.from()")
+	fmt.Printf("%T\n", addr)
 	fmt.Println(addr)
 }
 
