@@ -186,12 +186,9 @@ func (tx *Transaction) To() *common.Address {
 	return &to
 }
 
-func (tx *Transaction) From() {
+func (tx *Transaction) From() string {
 	addr, _ := recoverPlain(Hash(tx), tx.data.R, tx.data.S, tx.data.V, true)
-	fmt.Println("This is transaction.from()")
-	fmt.Printf("Type: %T\n", addr)
-	fmt.Println("Str: " + addr.String())
-	fmt.Println(addr)
+	return addr.String()
 }
 
 func Hash(tx *Transaction) common.Hash {
