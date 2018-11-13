@@ -186,9 +186,8 @@ func (tx *Transaction) To() *common.Address {
 	return &to
 }
 
-func (tx *Transaction) From() common.Address {
-	from := tx.from.Load()
-	return from.(common.Address)
+func (tx *Transaction) From() {
+	fmt.Println(tx.from)
 }
 
 // Hash hashes the RLP encoding of tx.
