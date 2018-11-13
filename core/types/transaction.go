@@ -178,7 +178,6 @@ func (tx *Transaction) CheckNonce() bool   { return true }
 // To returns the recipient address of the transaction.
 // It returns nil if the transaction is a contract creation.
 func (tx *Transaction) To() *common.Address {
-	fmt.Println(tx.from)
 	if tx.data.Recipient == nil {
 		return nil
 	}
@@ -187,7 +186,10 @@ func (tx *Transaction) To() *common.Address {
 }
 
 func (tx *Transaction) From() string {
-	addr, _ := recoverPlain(Hash(tx), tx.data.R, tx.data.S, tx.data.V, true)
+	addr, err := recoverPlain(Hash(tx), tx.data.R, tx.data.S, tx.data.V, true)
+	if err != nil {
+		return ""
+	}
 	return addr.String()
 }
 
