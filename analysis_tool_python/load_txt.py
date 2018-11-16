@@ -11,7 +11,9 @@ RECORD_PATH = '../records'
 
 
 class EthereumData:
-    def __init__(self):
+    def __init__(self, tx_paths, block_paths):
+        self.tx_paths = tx_paths
+        self.block_paths = block_paths
         # key='hash', value={'created_at': '2018-09-16 08:17:41.392476255 -0700 PDT'}
         self.txs = dict()
         # a block = {'received_status': 'Inserted', 'hash': 'xxx', 'number': '6393659', 'timestamp': '2018-09-24 23:59:22 +0000 UTC', 'txs': ['xxx', 'xxx]}
@@ -215,6 +217,7 @@ class EthereumData:
     def save_match(self):
         rs = ""
         i = 0
+        file_index = 0
         except_txs = list()
         # history_price = EtherPrice()
         # history_price.start()
@@ -224,10 +227,11 @@ class EthereumData:
             if i % 10000 == 0:
                 print(i)
             if i == 600000:
-                with open(RECORD_PATH + '/matched/' + datetime.now().strftime('%Y-%m-%d_%H_%M') + '.txt', 'w') as f:
+                with open(RECORD_PATH + '/matched/' + datetime.now().strftime('%Y-%m-%d_%H') + '_' + str(file_index) + '.txt', 'w') as f:
                     f.write(rs)
                 rs = ""
                 i = 0
+                file_index += 1
             try:
                 if tx['created_at'].count(tx['created_at'].split(' ')[1]) > 1:
                     hour = tx['created_at'].split(' ')[1]
@@ -240,10 +244,12 @@ class EthereumData:
                 if t1 > t2:
                     num_later += 1
                     continue
+                time_delta = t2 - t1
                 # dollar_price = history_price.get_price(t1.replace(second=0))
                 # dollar_fee = round(float(tx['max_fee'])/float(1e18)*float(dollar_price), 10)
                 dollar_fee = -1
-                rs += f"hash={tx['hash']}, gasPrice={tx['gas_price']}, maxFee={tx['max_fee']}, dollarFee={dollar_fee}, timeDelta={(t2-t1).seconds}\n"
+                rs += f"hash={tx['hash']}, gasPrice={tx['gas_price']}, maxFee={tx['max_fee']}, dollarFee={dollar_fee}, " \
+                      f"timeDelta={time_delta.days*86400 + time_delta.seconds}\n"
             except:
                 print(tx)
                 traceback.print_exc()
@@ -254,41 +260,44 @@ class EthereumData:
                     # dollar_price = history_price.get_price(t1.replace(second=0))
                     # dollar_fee = round(float(tx['max_fee'])/float(1e18)*float(dollar_price), 10)
                     dollar_fee = -1
-                    rs += f"hash={tx['hash']}, gasPrice={tx['gas_price']}, maxFee={tx['max_fee']}, dollarFee={dollar_fee}, timeDelta={(t2-t1).seconds}\n"
+                    time_delta = t2 - t1
+                    rs += f"hash={tx['hash']}, gasPrice={tx['gas_price']}, maxFee={tx['max_fee']}, dollarFee={dollar_fee}, " \
+                          f"timeDelta={time_delta.days*86400 + time_delta.seconds}\n"
                 except:
                     print("Still not able to fix it. Except this one.")
                     traceback.print_exc()
                     except_txs.append(tx)
 
         self.matched_txs = except_txs
-        with open(RECORD_PATH + '/matched/' + datetime.now().strftime('%Y-%m-%d_%H_%M') + '.txt', 'w') as f:
+        with open(RECORD_PATH + '/matched/' + datetime.now().strftime('%Y-%m-%d_%H') + '_' + str(file_index) + '.txt', 'w') as f:
             f.write(rs)
 
     def run(self):
-        # self = pickle.load(open('save_2018-10-22_11:49.p', 'rb'))
-        num, dup = self.count_tx_in_block(self.blocks)
-        print(f"Initial status: \nCount tx in block: num={num}, dup={dup}")
-        num = self.count_shard_tx(self.shard_txs)
-        print(f"Count shard_tx: num={num}")
-
-        self.started_at = datetime.now()
-        [self.load_tx(RECORD_PATH + '/ali_txs/' + file, ifBack=False) for file in os.listdir(RECORD_PATH + '/ali_txs/')]
-        [self.load_block(RECORD_PATH + '/blocks/canonical/' + file, ifBack=False) for file in os.listdir(RECORD_PATH + '/blocks/canonical/')]
-
-        num, dup = self.count_tx_in_block(self.blocks)
-        print(f"Original status: \nCount tx in block: num={num}, dup={dup}")
-        num = self.count_shard_tx(self.shard_txs)
-        print(f"Count shard_tx: num={num}")
-
-        self.match()
-
-        print(f"matched_txs={len(self.matched_txs)}")
-        num, dup = self.count_tx_in_block(self.blocks)
-        print(f"Remaining: \nCount tx in block: num={num}, dup={dup}")
-        num = self.count_shard_tx(self.shard_txs)
-        print(f"Count shard_tx: num={num}")
-        print(f"Finished matching. it's been {(datetime.now()-self.started_at).seconds} seconds")
-        pickle.dump(self, open('save_' + datetime.now().strftime('%Y-%m-%d_%H:%M') + '_before_clean.p', 'wb'))
+        self = pickle.load(open('save_2018-11-16_12:50_before_clean.p', 'rb'))
+        # num, dup = self.count_tx_in_block(self.blocks)
+        # print(f"Initial status: \nCount tx in block: num={num}, dup={dup}")
+        # num = self.count_shard_tx(self.shard_txs)
+        # print(f"Count shard_tx: num={num}")
+        #
+        # self.started_at = datetime.now()
+        # [[self.load_tx(RECORD_PATH + path + file, ifBack=False) for file in os.listdir(RECORD_PATH + path)]
+        #  for path in self.tx_paths]
+        # [[self.load_block(RECORD_PATH + path + file, ifBack=False) for file in os.listdir(RECORD_PATH + path)]
+        #  for path in self.block_paths]
+        # num, dup = self.count_tx_in_block(self.blocks)
+        # print(f"Original status: \nCount tx in block: num={num}, dup={dup}")
+        # num = self.count_shard_tx(self.shard_txs)
+        # print(f"Count shard_tx: num={num}")
+        #
+        # self.match()
+        #
+        # print(f"matched_txs={len(self.matched_txs)}")
+        # num, dup = self.count_tx_in_block(self.blocks)
+        # print(f"Remaining: \nCount tx in block: num={num}, dup={dup}")
+        # num = self.count_shard_tx(self.shard_txs)
+        # print(f"Count shard_tx: num={num}")
+        # print(f"Finished matching. it's been {(datetime.now()-self.started_at).seconds} seconds")
+        # pickle.dump(self, open('save_' + datetime.now().strftime('%Y-%m-%d_%H:%M') + '_before_clean.p', 'wb'))
 
         self.save_match()
 
@@ -297,17 +306,17 @@ class EthereumData:
 
 
 if __name__ == '__main__':
-    # EthereumData().run()
-    a1 = '2018-10-29 04:50:08 +0800'
-    a2 = 'Oct-29-2018 04:23:42 PM +UTC'
-    t1 = datetime.strptime(a1, '%Y-%m-%d %H:%M:%S %z')
-    print('====')
-    print(t1)
-    t1 = t1.astimezone(timezone(timedelta(hours=0))).replace(tzinfo=None)
-    print(t1)
-    t2 = datetime.strptime(a2, '%b-%d-%Y %I:%M:%S %p +%Z')
-    print(f"====\n{t2}")
-    t2 = t2.replace(tzinfo=None)
-    print(t2)
-    print(t1 < t2)
-    print((t2-t1).seconds)
+    EthereumData(['/ali_txs/', '/aws_txs/'], ['/blocks/canonical/']).run()
+    # a1 = '2018-10-29 04:50:08 +0800'
+    # a2 = 'Oct-29-2018 04:23:42 PM +UTC'
+    # t1 = datetime.strptime(a1, '%Y-%m-%d %H:%M:%S %z')
+    # print('====')
+    # print(t1)
+    # t1 = t1.astimezone(timezone(timedelta(hours=0))).replace(tzinfo=None)
+    # print(t1)
+    # t2 = datetime.strptime(a2, '%b-%d-%Y %I:%M:%S %p +%Z')
+    # print(f"====\n{t2}")
+    # t2 = t2.replace(tzinfo=None)
+    # print(t2)
+    # print(t1 < t2)
+    # print((t2-t1).seconds)
