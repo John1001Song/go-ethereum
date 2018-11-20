@@ -1,10 +1,11 @@
+import io
 import random
 import os
 import pickle
 from datetime import datetime, timezone, timedelta
 from analysis_tool_python.backup import backup
 import traceback
-
+import json
 # from get_ether_price import EtherPrice
 
 
@@ -16,6 +17,11 @@ class EthereumData:
     def __init__(self):
         # key='hash', value={'created_at': '2018-09-16 08:17:41.392476255 -0700 PDT'}
         self.txs = dict()
+        # store the ali txs in the given range
+        self.ali_txs_in_range = dict()
+        # store the aws txs in the given range
+        self.aws_txs_in_range = dict()
+
         # small processing time
         self.ali_small_txs = dict()
         # big processing time
@@ -40,8 +46,8 @@ class EthereumData:
             hash_value = line.split("Hash=")[1].split(', ')[0]
             tx = dict()
             tx["gas_price"] = line.split("GasPrice=")[1].split(', ')[0]
-            tx["gas_limit"] = line.split("GasLimet=")[1].split(', ')[0]
-            # tx["gas_limit"] = line.split("GasLimit=")[1].split(', ')[0]
+            # tx["gas_limit"] = line.split("GasLimet=")[1].split(', ')[0]
+            tx["gas_limit"] = line.split("GasLimit=")[1].split(', ')[0]
             # print(tx["gas_limit"])
             tx["max_fee"] = line.split("MaxFee=")[1].split(', ')[0].strip("\n")
             created_at = line.split(" m=")[0].strip('[')
@@ -60,8 +66,9 @@ class EthereumData:
                     continue
                 try:
                     extract_info(line)
-                except:
+                except Exception as ex:
                     print(f"Exception at {path}: {line}")
+                    print(ex)
         print(
             f"Load tx {path} completed. len={len(self.txs)}, it's been {(datetime.now()-self.started_at).seconds} seconds")
         if ifBack:
@@ -94,8 +101,8 @@ class EthereumData:
                     extract_info(block_line, f.readline())
                 except:
                     print(f"Exception at {path}: {block_line}")
-        # print(
-            # f"Load block {path} completed. len={len(self.blocks)}, it's been {(datetime.now()-self.started_at).seconds} seconds")
+        print(
+            f"Load block {path} completed. len={len(self.blocks)}, it's been {(datetime.now()-self.started_at).seconds} seconds")
         if ifBack:
             backup(path, f"{path.split('/2018')[0]}/backup/{path.split('/')[-1]}")
 
@@ -132,7 +139,7 @@ class EthereumData:
                     dup.append(f"{block['number']}-{tx_hash_value}")
                     continue
                 unique_txs[tx_hash_value] = 1
-                block_tx = {'hash': tx_hash_value, 'block_timestamp': block['timestamp']}
+                block_tx = {'hash': tx_hash_value, 'block_timestamp': block['timestamp'], 'block_number': block['number']}
                 if self.match_one_tx(block_tx):
                     block['txs'].remove(tx_hash_value)
         print(f"Match finished. Dup: len={len(dup)}")
@@ -151,6 +158,7 @@ class EthereumData:
         tx = self.shard_txs[key_1][key_2][key_3].pop(block_tx['hash'])
         tx['block_timestamp'] = block_tx['block_timestamp']
         tx['hash'] = block_tx['hash']
+        tx['block_number'] = block_tx['block_number']
         self.matched_txs.append(tx)
         return True
 
@@ -240,7 +248,7 @@ class EthereumData:
             if i % 10000 == 0:
                 print(i)
             if i == 600000:
-                with open(RECORD_PATH + '/matched/' + datetime.now().strftime('%Y-%m-%d_%H_%M') + '.txt', 'w') as f:
+                with open(RECORD_PATH + '/matched/' + datetime.now().strftime('%Y-%m-%d_%H_%M') + '.txt', 'w', encoding="utf-8") as f:
                     f.write(rs)
                 rs = ""
                 i = 0
@@ -257,13 +265,14 @@ class EthereumData:
                     timezone(timedelta(hours=0))).replace(tzinfo=None)
                 t2 = datetime.strptime(tx['block_timestamp'], '%b-%d-%Y %I:%M:%S %p +%Z').replace(tzinfo=None)
                 # t2 = datetime.strptime(tx['block_timestamp'], '%Y-%m-%d %H:%M:%S +%Z').replace(tzinfo=None)
-                # if t1 > t2:
-                #     num_later += 1
-                #     continue
+                if t1 > t2:
+                    num_later += 1
+                    continue
+                time_delta = t2 - t1
                 # dollar_price = history_price.get_price(t1.replace(second=0))
                 # dollar_fee = round(float(tx['max_fee'])/float(1e18)*float(dollar_price), 10)
                 dollar_fee = -1
-                rs += f"hash={tx['hash']}, gasPrice={tx['gas_price']}, gasLimit={tx['gas_limit']}, maxFee={tx['max_fee']}, dollarFee={dollar_fee}, timeDelta={(t2-t1).seconds}\n"
+                rs += f"hash={tx['hash']}, gasPrice={tx['gas_price']}, gasLimit={tx['gas_limit']}, maxFee={tx['max_fee']}, dollarFee={dollar_fee}, timeDelta={time_delta.days*86400 + time_delta.seconds}, createdAt={tx['created_at']}, blockNumber={tx['block_number']}\n"
             except:
                 print(tx)
                 traceback.print_exc()
@@ -274,7 +283,7 @@ class EthereumData:
                     # dollar_price = history_price.get_price(t1.replace(second=0))
                     # dollar_fee = round(float(tx['max_fee'])/float(1e18)*float(dollar_price), 10)
                     dollar_fee = -1
-                    rs += f"hash={tx['hash']}, gasPrice={tx['gas_price']}, gasLimit={tx['gas_limit']}, maxFee={tx['max_fee']}, dollarFee={dollar_fee}, timeDelta={(t2-t1).seconds}\n"
+                    rs += f"hash={tx['hash']}, gasPrice={tx['gas_price']}, gasLimit={tx['gas_limit']}, maxFee={tx['max_fee']}, dollarFee={dollar_fee}, timeDelta={time_delta.days*86400 + time_delta.seconds}, createdAt={tx['created_at']}, blockNumber={tx['block_number']}\n"
                 except:
                     print("Still not able to fix it. Except this one.")
                     traceback.print_exc()
@@ -282,7 +291,7 @@ class EthereumData:
 
         self.matched_txs = except_txs
         # with open(RECORD_PATH + '/one_week/aws_matched/' + datetime.now().strftime('%Y-%m-%d_%H_%M') + '.txt', 'w') as f:
-        with open(RECORD_PATH + '/matched/' + datetime.now().strftime('%Y-%m-%d_%H_%M') + '.txt', 'w') as f:
+        with open(RECORD_PATH + '/matched/' + datetime.now().strftime('%Y-%m-%d_%H_%M') + '.txt', 'w', encoding="utf-8") as f:
             f.write(rs)
 
     def run(self):
@@ -293,7 +302,8 @@ class EthereumData:
         print(f"Count shard_tx: num={num}")
 
         self.started_at = datetime.now()
-        [self.load_tx(RECORD_PATH + '/ali_txs/' + file, ifBack=False) for file in os.listdir(RECORD_PATH + '/ali_txs/')]
+        # [self.load_tx(RECORD_PATH + '/ali_txs/' + file, ifBack=False) for file in os.listdir(RECORD_PATH + '/ali_txs/')]
+        [self.load_tx(RECORD_PATH + '/txs/aws_cleaned/' + file, ifBack=False) for file in os.listdir(RECORD_PATH + '/txs/aws_cleaned/')]
         [self.load_block(RECORD_PATH + '/blocks/canonical/' + file, ifBack=False) for file in
          os.listdir(RECORD_PATH + '/blocks/canonical/')]
 
@@ -318,51 +328,6 @@ class EthereumData:
         print(f"Finished saving. it's been {(datetime.now()-self.started_at).seconds} seconds")
 
     ####################################################
-
-    def load_tx_j(self, path, ifBack=False):
-        def extract_info(line):
-            # Skip old tx without fee
-            if "MaxFee=" not in line:
-                return
-            hash_value = line.split("Hash=")[1].split(', ')[0]
-            tx = dict()
-            tx["gas_price"] = line.split("GasPrice=")[1].split(', ')[0]
-            tx["gas_limit"] = line.split("GasLimit=")[1].split(', ')[0]
-            tx["max_fee"] = line.split("MaxFee=")[1].split(', ')[0].strip("\n")
-            created_at = line.split(" m=")[0].strip('[')
-            tx['created_at'] = created_at.split('.')[0] + ' ' + ' '.join(created_at.split(' ')[2:])
-            # self.txs[hash_value] = tx
-            return hash_value, tx
-
-        if not path.split('/')[-1].startswith('2018') and not path.split('/')[-1].startswith('test'):
-            return
-        with open(path, 'r') as f:
-            while True:
-                line = f.readline()
-                self.num += 1
-                if not line:
-                    break
-                if line == '\n' or '0x' not in line:
-                    continue
-                try:
-                    cur_hash, cur_tx = extract_info(line)
-                    self.txs[cur_hash] = cur_tx
-                except:
-                    print(f"Exception at {path}: {line}")
-        print(
-            f"Load tx {path} completed. len={len(self.txs)}, it's been {(datetime.now()-self.started_at).seconds} seconds")
-        if ifBack:
-            backup(path, f"{path.split('/2018')[0]}/backup/{path.split('/')[-1]}")
-        # self.split_txs_into_shards()
-
-    def load_tx_block_j(self):
-        # sine hash value in self.txs[hash_value] is unique already,
-        # directly loading it can have a dict of all unique txs
-        [self.load_tx_j(RECORD_PATH + '/one_week/ali_txs/' + file, ifBack=False) for file in
-         os.listdir(RECORD_PATH + '/one_week/ali_txs/')]
-        [self.load_block(RECORD_PATH + '/blocks/ali/' + file, ifBack=False) for file in
-         os.listdir(RECORD_PATH + '/blocks/ali/')]
-        # print(self.txs)
 
     def run_j(self):
         # self = pickle.load(open('save_2018-10-22_11:49.p', 'rb'))
@@ -437,33 +402,69 @@ class EthereumData:
         pickle.dump(self, open('save_' + datetime.now().strftime('%Y-%m-%d_%H:%M') + '.p', 'wb'))
         print(f"Finished saving. it's been {(datetime.now()-self.started_at).seconds} seconds")
 
-    def load_matched_tx_j(self, path, aliOrAws, small, big, ifBack=False):
-        def extract_info(line, aliOrAws):
+    def load_block_j(self, path, ali_aws_blocks, ifBack=False):
+        def extract_info(block_line, tx_line):
+            block = dict()
+            block['received_status'] = block_line.split('Block Hash')[0].split('[')[-1].split(']')[0]
+            block['hash'] = block_line.split('Hash=')[1].split(', ')[0]
+            block['number'] = block_line.split('number=')[1].split(', ')[0]
+            block['parentHash'] = block_line.split('parentHash=')[1].split(', ')[
+                0] if 'parentHash' in block_line else ''
+            block['uncleHash'] = block_line.split('uncleHash=')[1].split(', ')[0] if 'uncleHash' in block_line else ''
+            block['timestamp'] = block_line.split('timestamp=')[1].strip('\n')
+            block['txs'] = [tx for tx in tx_line.strip(", \n").split(', ') if tx]
+            # self.blocks.append(block)
+            ali_aws_blocks.append(block)
+        if not path.split('/')[-1].startswith('2018') and not path.split('/')[-1].startswith('test'):
+            return
+        with open(path, 'r') as f:
+            while True:
+                block_line = f.readline()
+                if not block_line:
+                    break
+                if block_line == '\n':
+                    continue
+                try:
+                    extract_info(block_line, f.readline())
+                except:
+                    print(f"Exception at {path}: {block_line}")
+        print(
+            f"Load block {path} completed. len={len(self.blocks)}, it's been {(datetime.now()-self.started_at).seconds} seconds")
+        if ifBack:
+            backup(path, f"{path.split('/2018')[0]}/backup/{path.split('/')[-1]}")
+
+
+    def load_matched_tx_j(self, path, ali_aws_txs_in_range, range_left, range_right, ifBack=False):
+        '''
+        based on the provided range, left included, right excluded, compare the delta time
+        if the delta time is in the range, insert into the object dict.
+        :param path:
+        :param aliOrAws:
+        :param range_left:
+        :param range_right:
+        :param ifBack:
+        :return:
+        '''
+        def extract_info(line, ali_aws_txs_in_range):
             # Skip old tx without fee
+            # hash=0x13c9804b9a4e3bd00dfe4dcdbba042c87ed278cebc0d45dec49de91e60f86fc2, gasPrice=1300000000, gasLimit=100000, maxFee=130000000000000, dollarFee=-1, timeDelta=17241, createdAt=2018-10-29 06:05:53, blockNumber=6606699
+            # hash=0x98720fe9922deebd700b735afc6e30821ed73313189aa1b4d6308b623c3ddcdf, gasPrice=4000000000, gasLimit=100000, maxFee=400000000000000, dollarFee=-1, timeDelta=511, createdAt=2018-11-07 08:09:10, blockNumber=6661127
             if "maxFee=" not in line:
                 return
             tx = dict()
             hash_value = line.split("hash=")[1].split(', ')[0]
-            timedelta = line.split("timeDelta=")[1]
-            tx['timeDelta'] = timedelta.strip("\n")
+            timedelta = line.split("timeDelta=")[1].split(', ')[0]
+            tx['timeDelta'] = timedelta
             tx["gas_price"] = line.split("gasPrice=")[1].split(', ')[0]
             tx["gas_limit"] = line.split("gasLimit=")[1].split(', ')[0]
-            tx["max_fee"] = line.split("maxFee=")[1].split(', ')[0].strip("\n")
+            tx["max_fee"] = line.split("maxFee=")[1].split(', ')[0]
+            tx["created_at"] = line.split("createdAt=")[1].split(', ')[0]
+            tx["block_number"] = line.split("blockNumber=")[1].strip('\n')
 
-            if int(timedelta) < small:
-                if aliOrAws == 0:
-                    self.ali_small_txs[hash_value] = tx
-                if aliOrAws == 1:
-                    self.aws_small_txs[hash_value] = tx
+            if range_left <= int(timedelta) and int(timedelta) <= range_right:
+                ali_aws_txs_in_range[hash_value] = tx
+                # print(tx)
 
-            if int(timedelta) > big:
-                if aliOrAws == 0:
-                    self.ali_big_txs[hash_value] = tx
-                if aliOrAws == 1:
-                    self.aws_big_txs[hash_value] = tx
-
-        # if not path.split('/')[-1].startswith('2018') and not path.split('/')[-1].startswith('test'):
-        #     return
         with open(path, 'r') as f:
             while True:
                 line = f.readline()
@@ -473,134 +474,92 @@ class EthereumData:
                 if line == '\n' or '0x' not in line:
                     continue
                 try:
-                    extract_info(line, aliOrAws)
-                except:
+                    extract_info(line, ali_aws_txs_in_range)
+                except Exception as ex:
+                    print(ex)
                     print(f"Exception at {path}: {line}")
-        print(
-            f"Load tx {path} completed. len={len(self.txs)}, it's been {(datetime.now()-self.started_at).seconds} seconds")
+        # print(
+        #     f"Load tx {path} completed. len={len(self.txs)}, it's been {(datetime.now()-self.started_at).seconds} seconds")
         if ifBack:
             backup(path, f"{path.split('/2018')[0]}/backup/{path.split('/')[-1]}")
         # self.split_txs_into_shards()
 
-    def count_one_type_in_uncle(self, aliOrAws, smallOrBig):
+    def count_one_type_in_uncle(self, ali_aws_txs_in_range, platform_name, range_left, range_right, output_log_path):
         total_tx_in_uncle = 0
-        declar = ""
-        platform = ""
-        block_list = list()
-        all_uncle = list()
-        file_name = ""
+        platform = platform_name
+        # key: tx hash
+        # value = uncle blocks hash including canonical
+        # all_txs_uncles = dict()
+        all_txs_uncles = list()
         total_fee = 0
         tx_count = 0
         total_gas_limit = 0
-
-        if aliOrAws == 0:
-            platform = "ali"
-            if smallOrBig == 0:
-                txs = self.ali_small_txs
-                declar = "small"
-                file_name = "../records/one_week/ali_tx_non_canonical_log/ali_small_tx_uncle.txt"
-            else:
-                txs = self.ali_big_txs
-                declar = "big"
-                file_name = "../records/one_week/ali_tx_non_canonical_log/ali_big_tx_uncle.txt"
-        else:
-            platform = "aws"
-            if smallOrBig == 0:
-                txs = self.aws_small_txs
-                declar = "small"
-                file_name = "../records/one_week/aws_tx_non_canonical_log/aws_small_tx_uncle.txt"
-            else:
-                txs = self.aws_big_txs
-                declar = "big"
-                file_name = "../records/one_week/aws_tx_non_canonical_log/aws_big_tx_uncle.txt"
+        txs = ali_aws_txs_in_range
+        file_name = output_log_path + str(range_left) + "-" + str(range_right) + ".txt"
 
         for hash_value in txs:
             tx_count += 1
             tx_to_log = f"txHash={hash_value} uncles="
             i = 0
             pre = 0
-            block_list = list()
+            # one_tx_uncles = list()
+            one_tx_uncles = dict()
+            one_tx_uncles['tx_hash_value'] = hash_value
+            one_tx_uncles['tx_content'] = ali_aws_txs_in_range[hash_value]
+            one_tx_uncles['uncles'] = list()
             count_uncle = 0
             for block in self.blocks:
                 if hash_value in block['txs']:
-                    # print(f"tx: {hash_value} in")
-                    # block_list.append(block['hash'])
-                    # print(f"{block['hash']}, {block['number']} at {block['timestamp']}")
-                    count_uncle += 1
-                    if count_uncle > 1:
-                        block_list.append(block['hash'])
-                        all_uncle.append(block['hash'])
-            if count_uncle > 1:
-                total_tx_in_uncle += 1
+                    one_tx_uncles['uncles'].append(block['hash'])
+
+            if len(one_tx_uncles['uncles']) > 1:
+                all_txs_uncles.append(one_tx_uncles)
+                total_tx_in_uncle += len(one_tx_uncles['uncles'])
                 total_fee += int(txs[hash_value]["max_fee"])
                 total_gas_limit += int(txs[hash_value]["gas_limit"])
-                tx_to_log += ' '.join(block_list)
-                tx_to_log += '\n'
-                with open(file_name, 'a') as f:
-                    f.write(tx_to_log)
-                # print(f"tx: {hash_value} appears in {count_uncle} uncle blocks")
 
         print(f"total fee: {total_fee}")
         print(f"total gas limit: {total_gas_limit}")
-        print(f"tx in uncle: {total_tx_in_uncle}")
+
         try:
-            print(f"in platform {platform}, {total_tx_in_uncle} {declar} txs appear in {len(set(all_uncle))} uncles. Their average fee is {total_fee/total_tx_in_uncle}, and average gas limit is {total_gas_limit/total_tx_in_uncle}.")
+            print(f"in platform {platform}, {len(all_txs_uncles)} txs appear in {total_tx_in_uncle} uncles. Their average fee is {total_fee/total_tx_in_uncle}, and average gas limit is {total_gas_limit/total_tx_in_uncle}.")
         except Exception as ex:
             print(ex)
             print(
-                f"in platform {platform}, {total_tx_in_uncle} {declar} txs appear in {len(set(all_uncle))} uncles. Their average fee is {0}, and average gas limit is {0}.")
+                f"in platform {platform}, {len(all_txs_uncles)} txs appear in {total_tx_in_uncle} uncles. Their average fee is {0}, and average gas limit is {0}.")
 
-    def count_txs_in_uncle(self, small, big):
-        # load ali and aws
-        # 0: ali matched
-        [self.load_matched_tx_j(RECORD_PATH + '/one_week/ali_matched/' + file, 0, small, big) for file in os.listdir(RECORD_PATH + '/one_week/ali_matched/')]
-        # 1: aws matched
-        [self.load_matched_tx_j(RECORD_PATH + '/one_week/aws_matched/' + file, 1, small, big) for file in os.listdir(RECORD_PATH + '/one_week/aws_matched/')]
+        with open(file_name, 'a') as f:
+            f.write(json.dumps(all_txs_uncles))
 
-        print("ali big txs: ", len(self.ali_big_txs))
-        print("ali small txs: ", len(self.ali_small_txs))
-        print("aws big txs: ", len(self.aws_big_txs))
-        print("aws small txs: ", len(self.aws_small_txs))
 
-        # load one week block data
+    def count_txs_in_uncle(self, range_left, range_right):
+        print(f"tx processing time [{range_left}, {range_right})")
+        # # load ali and aws
+        # # ali matched
+        [self.load_matched_tx_j(RECORD_PATH + '/one_week/ali_matched/' + file, self.ali_txs_in_range, range_left, range_right) for file in os.listdir(RECORD_PATH + '/one_week/ali_matched/')]
+        # # aws matched
+        [self.load_matched_tx_j(RECORD_PATH + '/one_week/aws_matched/' + file, self.aws_txs_in_range, range_left, range_right) for file in os.listdir(RECORD_PATH + '/one_week/aws_matched/')]
+        #
+        # # load one week block data
         [self.load_block(RECORD_PATH + '/one_week/ali_blocks/' + file, ifBack=False) for file in
          os.listdir(RECORD_PATH + '/one_week/ali_blocks/')]
 
-        # ali small txs
-        print("small: ", small)
-        self.count_one_type_in_uncle(0, 0)
-        # ali big txs
-        # print("big: ", big)
-        # self.count_one_type_in_uncle(0, 1)
+        # print("Checking ali")
+        print("ali txs in this range: ", len(self.ali_txs_in_range))
+        self.count_one_type_in_uncle(self.ali_txs_in_range, "ali", range_left, range_right, "../records/one_week/ali_tx_non_canonical_log/")
 
-        # self.blocks.clear()
+        self.blocks.clear()
 
-        # [self.load_block(RECORD_PATH + '/one_week/aws_blocks/' + file, ifBack=False) for file in
-        #  os.listdir(RECORD_PATH + '/one_week/aws_blocks/')]
+        [self.load_block(RECORD_PATH + '/one_week/aws_blocks/' + file, ifBack=False) for file in
+         os.listdir(RECORD_PATH + '/one_week/aws_blocks/')]
 
-        # aws small txs
-        print("small: ", small)
-        self.count_one_type_in_uncle(1, 0)
-        # aws big txs
-        # print("big: ", big)
-        # self.count_one_type_in_uncle(1, 1)
+        # print("Checking aws")
+        print("aws txs in this range: ", len(self.aws_txs_in_range))
+        self.count_one_type_in_uncle(self.aws_txs_in_range, "aws", range_left, range_right, "../records/one_week/aws_tx_non_canonical_log/")
 
-    # before split the matched tx, must load the matched tx file
-    def split_matched_tx_by_delta_time(self):
-        # 0: ali matched
-        self.load_matched_tx_j(RECORD_PATH + '/matched/ali_matched_txs.txt', 0, 100, 60000)
-        # 1: aws matched
-        self.load_matched_tx_j(RECORD_PATH + '/matched/aws_matched_txs.txt', 1, 100, 60000)
-
-        print('ali small txs: ', len(self.ali_small_txs))
-        print('ali big txs: ', len(self.ali_big_txs))
-        # print('ali small txs: ', self.ali_small_txs)
-        # print('ali big txs: ', self.ali_big_txs)
-        print('aws small txs: ', len(self.aws_small_txs))
-        print('aws big txs: ', len(self.aws_big_txs))
-        # print('aws small txs: ', self.aws_small_txs)
-        # print('aws big txs: ', self.aws_big_txs)
-
+        # after checking, the ali and aws range txs dict should be clear for the next checking
+        self.ali_txs_in_range.clear()
+        self.aws_txs_in_range.clear()
 
 if __name__ == '__main__':
     EthereumData().run()

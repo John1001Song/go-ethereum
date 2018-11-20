@@ -10,8 +10,7 @@ def clean_tx(file_path):
     u = dict()
     rs = ''
     date_ok = True
-    if file_path.split('/')[-1].startswith(datetime.now().strftime('%Y-%m-%d')) \
-            or not file_path.split('/')[-1].startswith('2018'):
+    if not file_path.split('/')[-1].startswith('2018'):
         return
     with open(file_path, 'r') as f:
         print(f"Cleaning {file_path}")
