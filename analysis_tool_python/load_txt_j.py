@@ -506,11 +506,12 @@ class EthereumData:
             one_tx_uncles = dict()
             one_tx_uncles['tx_hash_value'] = hash_value
             one_tx_uncles['tx_content'] = ali_aws_txs_in_range[hash_value]
-            one_tx_uncles['uncles'] = list()
+            one_tx_uncles['uncles'] = dict()
             count_uncle = 0
             for block in self.blocks:
                 if hash_value in block['txs']:
-                    one_tx_uncles['uncles'].append(block['hash'])
+                    # one_tx_uncles['uncles'].add(block['hash'])
+                    one_tx_uncles['uncles'][block['number']] = block['hash']
 
             if len(one_tx_uncles['uncles']) > 1:
                 all_txs_uncles.append(one_tx_uncles)
@@ -536,19 +537,19 @@ class EthereumData:
         print(f"tx processing time [{range_left}, {range_right})")
         # # load ali and aws
         # # ali matched
-        [self.load_matched_tx_j(RECORD_PATH + '/one_week/ali_matched/' + file, self.ali_txs_in_range, range_left, range_right) for file in os.listdir(RECORD_PATH + '/one_week/ali_matched/')]
+        # [self.load_matched_tx_j(RECORD_PATH + '/one_week/ali_matched/' + file, self.ali_txs_in_range, range_left, range_right) for file in os.listdir(RECORD_PATH + '/one_week/ali_matched/')]
         # # aws matched
         [self.load_matched_tx_j(RECORD_PATH + '/one_week/aws_matched/' + file, self.aws_txs_in_range, range_left, range_right) for file in os.listdir(RECORD_PATH + '/one_week/aws_matched/')]
         #
         # # load one week block data
-        [self.load_block(RECORD_PATH + '/one_week/ali_blocks/' + file, ifBack=False) for file in
-         os.listdir(RECORD_PATH + '/one_week/ali_blocks/')]
+        # [self.load_block(RECORD_PATH + '/one_week/ali_blocks/' + file, ifBack=False) for file in
+        #  os.listdir(RECORD_PATH + '/one_week/ali_blocks/')]
 
         # print("Checking ali")
-        print("ali txs in this range: ", len(self.ali_txs_in_range))
-        self.count_one_type_in_uncle(self.ali_txs_in_range, "ali", range_left, range_right, "../records/one_week/ali_tx_non_canonical_log/")
+        # print("ali txs in this range: ", len(self.ali_txs_in_range))
+        # self.count_one_type_in_uncle(self.ali_txs_in_range, "ali", range_left, range_right, "../records/one_week/ali_tx_non_canonical_log/")
 
-        self.blocks.clear()
+        # self.blocks.clear()
 
         [self.load_block(RECORD_PATH + '/one_week/aws_blocks/' + file, ifBack=False) for file in
          os.listdir(RECORD_PATH + '/one_week/aws_blocks/')]

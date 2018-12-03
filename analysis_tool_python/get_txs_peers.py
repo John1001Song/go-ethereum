@@ -26,6 +26,8 @@ class PeerTxData:
         self.peer_blocks = list()
         self.started_at = datetime.now()
         self.output = output_path
+        # my unclues actually includes uncle and canonical
+        self.my_uncles = list(this_tx['uncles'].keys())
 
         self.all_peers_gas_limit = list()
         self.all_peers_gas_price = list()
@@ -33,9 +35,14 @@ class PeerTxData:
         # all_peers_series[block_number] = this_block_txs_series
         self.all_peers_max_fee_series = dict()
         self.all_peers_gas_limit_series = dict()
+        # store max fee based on block number
+        # key: block number
+        # value: list of max fee
+        self.all_peers_max_fee_among_blocks = dict()
 
         print("tx hash value: ", self.hash_value)
         print("tx in block: ", self.block_number)
+        print("tx block history: ", self.my_uncles)
         print("tx created at: ", self.created_at)
         print("tx gas limit: ", self.gas_limit)
         print("tx max fee: ", self.max_fee)
@@ -99,6 +106,8 @@ class PeerTxData:
         # print(txs_res)
         gas_limit_list = list()
         max_fee_list = list()
+        self.all_peers_max_fee_among_blocks[block['number']] = list()
+
         for hash_value in txs_res:
             gas_limit = int(txs_res[hash_value]['gas_limit'])
             gas_limit_list.append(gas_limit)
@@ -106,6 +115,7 @@ class PeerTxData:
             max_fee = int(txs_res[hash_value]['gas_limit']) * float(txs_res[hash_value]['gas_price'])
             max_fee_list.append(max_fee)
             self.all_peers_max_fee.append(max_fee)
+            self.all_peers_max_fee_among_blocks[block['number']].append(max_fee)
 
         # block['gas_limit_series'] = pd.Series(gas_limit_list)
         self.all_peers_max_fee_series[block['number']] = pd.Series(max_fee_list)
@@ -115,6 +125,7 @@ class PeerTxData:
         # print("max fee:")
         # print(block['max_fee_series'].describe())
         # print(block)
+        return True
 
     def draw_avg_max_fee_in_blocks(self):
         # plot max_fee
@@ -172,6 +183,27 @@ class PeerTxData:
         plt.scatter(temp.index, temp)
         plt.show()
 
+    def analyze_negative_max_fee_diff(self):
+        # list of block numbers who contains max fee smaller than this tx max fee
+        block_number_list = list()
+        cur_max_fee_list = list()
+        for block_number in self.all_peers_max_fee_among_blocks:
+            cur_max_fee_list = self.all_peers_max_fee_among_blocks.get(block_number)
+            for cur_max_fee in cur_max_fee_list:
+                if self.max_fee > cur_max_fee*1000000000000000000:
+                    block_number_list.append(block_number)
+        print(f"number of max fees smaller than this tx max fee: {len(block_number_list)}")
+
+        # key: block number
+        # value: how many times the block number appears
+        block_number_dict = dict()
+        for block_number in block_number_list:
+            if block_number in block_number_dict:
+                block_number_dict[block_number] = block_number_dict[block_number] + 1
+            else:
+                block_number_dict[block_number] = 1
+        print(block_number_dict)
+
     def analyze_peers_max_fee(self):
         # analyze how many max fees are smaller than the tx max fee
         count = 0
@@ -192,92 +224,104 @@ class PeerTxData:
         for fee in self.all_peers_max_fee:
             temp_max_fee_list.append(fee*1000000000000000000)
         m_fee_series = pd.Series(temp_max_fee_list)
-        print(f"some stats of the peers max fees: \n{m_fee_series.describe()}")
+        print(f"stats of the peers max fees: \n{m_fee_series.describe()}")
 
         # analyze the stats of max fee difference
         temp_max_fee_list.clear()
         for fee in self.all_peers_max_fee:
             temp_max_fee_list.append((fee*1000000000000000000 - self.max_fee) / self.max_fee * 100)
         m_fee_series = pd.Series(temp_max_fee_list)
-        print(f"some stats of the max fee difference in percentage: \n{m_fee_series.describe()}")
+        print(f"stats of the max fee difference in percentage: \n{m_fee_series.describe()}")
 
         # collect the distribution of the difference
         max_fee_distribution = dict()
         max_fee_distribution['negative'] = 0
-        max_fee_distribution['0-50%'] = 0
-        max_fee_distribution['50%-100%'] = 0
+        max_fee_distribution['0%-100%'] = 0
         max_fee_distribution['100%-200%'] = 0
-        max_fee_distribution['>200%'] = 0
+        max_fee_distribution['200%-300%'] = 0
+        max_fee_distribution['300%-400%'] = 0
+        max_fee_distribution['400%-500%'] = 0
+        max_fee_distribution['500%-600%'] = 0
+        max_fee_distribution['>600%'] = 0
         for diff in temp_max_fee_list:
             if diff < 0:
-                max_fee_distribution['negative'] = max_fee_distribution['negative'] + 1
+                max_fee_distribution['negative'] += 1
+            elif diff <= 100:
+                max_fee_distribution['0%-100%'] += 1
+            elif diff <= 200:
+                max_fee_distribution['100%-200%'] += 1
+            elif diff <= 300:
+                max_fee_distribution['200%-300%'] += 1
+            elif diff <= 400:
+                max_fee_distribution['300%-400%'] += 1
+            elif diff <= 500:
+                max_fee_distribution['400%-500%'] += 1
+            elif diff <= 600:
+                max_fee_distribution['500%-600%'] += 1
             else:
-                if diff <= 50:
-                    max_fee_distribution['0-50%'] = max_fee_distribution['0-50%'] + 1
-                else:
-                    if diff <= 100:
-                        max_fee_distribution['50%-100%'] = max_fee_distribution['50%-100%'] + 1
-                    else:
-                        if diff <= 200:
-                            max_fee_distribution['100%-200%'] = max_fee_distribution['100%-200%'] + 1
-                        else:
-                            max_fee_distribution['>200%'] += 1
+                max_fee_distribution['>600%'] += 1
         print(max_fee_distribution)
-        # caution hard code here for the total number of txs
+
         for interval in max_fee_distribution:
-            max_fee_distribution[interval] = max_fee_distribution[interval]/83574*100
+            max_fee_distribution[interval] = max_fee_distribution[interval]/len(self.all_peers_max_fee)*100
         print(max_fee_distribution)
+
         distribution_series = pd.Series(max_fee_distribution, name='percentage')
         distribution_series.index.name = 'range'
         print(distribution_series)
-        distribution_series.plot(kind='bar')
-        plt.title('Peers max fee difference distribution')
-        plt.ylabel('Percentage value')
-        plt.show()
+        # distribution_series.plot(kind='bar')
+        # plt.title('Peers max fee difference distribution')
+        # plt.ylabel('Percentage value')
+        # plt.show()
 
     def run(self):
-        # [self.load_block(canonical_path + file) for file in os.listdir(canonical_path)]
-        # total_block_number = len(self.peer_blocks)
-        # counter = 1
-        # for block in self.peer_blocks:
-        #     if counter > 1000:
-        #         break
-        #     self.process_one_block(block)
-        #     print(f"complete {counter}/{total_block_number}, it's been {(datetime.now()-self.started_at).seconds} seconds")
-        #     counter += 1
-        #
+        [self.load_block(canonical_path + file) for file in os.listdir(canonical_path)]
+        total_block_number = len(self.peer_blocks)
+        counter = 1
+        temp_process_result = False
+        for block in self.peer_blocks:
+            if counter > 1000:
+                break
+            temp_process_result = False
+            while True:
+                try:
+                    temp_process_result = self.process_one_block(block)
+                    print(f"complete {counter}/{total_block_number}, it's been {(datetime.now()-self.started_at).seconds} seconds")
+                    if temp_process_result == True:
+                        break
+                except:
+                    print(f"Exception. Retrying...")
+
+            counter += 1
+
         # dump the data
-        # pickle.dump(self, open('save_' + datetime.now().strftime('%Y-%m-%d_%H:%M') + '.p', 'wb'))
-        # print(f"Finished saving. it's been {(datetime.now()-self.started_at).seconds} seconds")
+        pickle.dump(self, open('save_' + datetime.now().strftime('%Y-%m-%d_%H:%M') + '.p', 'wb'))
+        print(f"Finished saving. it's been {(datetime.now()-self.started_at).seconds} seconds")
 
         # load the data
-        self = pickle.load(open('save_2018-11-19_09:11.p', 'rb'))
+        # self = pickle.load(open('save_2018-11-28_06:27.p', 'rb'))
 
-        # self.analyze_peers_max_fee()
-        self.draw_avg_max_fee_in_blocks()
-        self.draw_peers_max_fee()
+        self.analyze_peers_max_fee()
+        self.analyze_negative_max_fee_diff()
+        # self.draw_avg_max_fee_in_blocks()
+        # self.draw_peers_max_fee()
 
 
 
 if __name__ == '__main__':
     this_tx = dict()
+    # ali
+    # 0x9d7c98b7f72171a2ea12368c2491c66ce7596dbb35b408a882678feb07be533c <--> save_2018-11-28_06:27.p
+    # this_tx = json.loads("{\"tx_hash_value\": \"0x9d7c98b7f72171a2ea12368c2491c66ce7596dbb35b408a882678feb07be533c\", \"tx_content\": {\"timeDelta\": \"805935\", \"gas_price\": \"1000000000\", \"gas_limit\": \"21000\", \"max_fee\": \"21000000000000\", \"created_at\": \"2018-11-03 09:35:53\", \"block_number\": \"6693798\"}, \"uncles\": {\"6689616\": \"0xebffc635ca62c9a75e1d18a439ac63f6dee3b47e3dac45172c5a3b9ac2f44f13\", \"6693798\": \"0x28c152e864a322688c055edf9b7884a6906f5a67158cb7922887f06cda080f0c\"}}")
+
+    # ali
+    # 0x7d3232c514557c8c279aaa61d595e82c3f9e88a0adadb594394a7f46373d24f5 <--> save-12-01_17:09.p
     # this_tx = json.loads(
-    #     "{\"tx_hash_value\": \"0xb4ac29a70a09290556bc584fd1a033e39488ad6fb797b21db73ec67747b31771\", \"tx_content\": {\"timeDelta\": \"30\", \"gas_price\": 1401000000, \"gas_limit\": \"130009\", \"max_fee\": \"182142609000000\", \"created_at\": \"2018-11-10 15:39:01\", \"block_number\": \"6681313\"}, \"uncles\": [\"0x6d776e34cbb4a3ca2b358cdfe6f1797998cf4d86f0f271c314409e46a518968e\", \"0xa45566c51b77b4c75e75fb8c0cb9b6a7a94fe6527971222a8c7c8d937e13986f\"]}")
+    #     "{\"tx_hash_value\": \"0x7d3232c514557c8c279aaa61d595e82c3f9e88a0adadb594394a7f46373d24f5\", \"tx_content\": {\"timeDelta\": \"804634\", \"gas_price\": \"1000000000\", \"gas_limit\": \"21000\", \"max_fee\": \"21000000000000\", \"created_at\": \"2018-11-03 09:57:34\", \"block_number\": \"6693798\"}, \"uncles\": {\"6689616\": \"0xebffc635ca62c9a75e1d18a439ac63f6dee3b47e3dac45172c5a3b9ac2f44f13\", \"6693798\": \"0x28c152e864a322688c055edf9b7884a6906f5a67158cb7922887f06cda080f0c\"}}")
 
-    # 91562 blocks in the time interval
-    # this_tx = json.loads("{\"tx_hash_value\": \"0x2c63f195f68208f7b103af74d4ba17caee6518bcb173d05818f00298b81dc879\", \"tx_content\": {\"timeDelta\": \"1310387\", \"gas_price\": \"1110000000\", \"gas_limit\": \"100009\", \"max_fee\": \"111009990000000\", \"created_at\": \"2018-10-29 06:39:09\", \"block_number\": \"6698117\"}, \"uncles\": [\"0xaedac475b4861071e6e88ccf66460fc228b673aad9d179787258a488eb7fefea\", \"0xaedac475b4861071e6e88ccf66460fc228b673aad9d179787258a488eb7fefea\", \"0xaedac475b4861071e6e88ccf66460fc228b673aad9d179787258a488eb7fefea\", \"0xaedac475b4861071e6e88ccf66460fc228b673aad9d179787258a488eb7fefea\", \"0xaedac475b4861071e6e88ccf66460fc228b673aad9d179787258a488eb7fefea\"]}")
-
-    # 90756 blocks => 14 days
-    # this_tx = json.loads("{\"tx_hash_value\": \"0xd9047a7ed39821d16269dcfd043847b0ae91713ff501a32cc2f03e27ded90068\", \"tx_content\": {\"timeDelta\": \"1300453\", \"gas_price\": \"1030000000\", \"gas_limit\": \"105826\", \"max_fee\": \"109000780000000\", \"created_at\": \"2018-10-29 06:09:30\", \"block_number\": \"6697311\"}, \"uncles\": [\"0x1ed650c1efcefcd4e2c6cf7ec12af7547fd2aa263c2d61ec203d6b9fcc87c0de\", \"0x1ed650c1efcefcd4e2c6cf7ec12af7547fd2aa263c2d61ec203d6b9fcc87c0de\", \"0x1ed650c1efcefcd4e2c6cf7ec12af7547fd2aa263c2d61ec203d6b9fcc87c0de\", \"0x1ed650c1efcefcd4e2c6cf7ec12af7547fd2aa263c2d61ec203d6b9fcc87c0de\", \"0x1ed650c1efcefcd4e2c6cf7ec12af7547fd2aa263c2d61ec203d6b9fcc87c0de\", \"0x1ed650c1efcefcd4e2c6cf7ec12af7547fd2aa263c2d61ec203d6b9fcc87c0de\", \"0x1ed650c1efcefcd4e2c6cf7ec12af7547fd2aa263c2d61ec203d6b9fcc87c0de\"]}")
-
-    # 90756 => > 10 days
-    # already have an instance for this aws tx with 1000-block peer txs
-    this_tx = json.loads("{\"tx_hash_value\": \"0x5057096a269ca008ee886e0980f1837bc93cb7853fba8da059c74aceff79e89b\", \"tx_content\": {\"timeDelta\": \"1300464\", \"gas_price\": \"1200000000\", \"gas_limit\": \"80000\", \"max_fee\": \"96000000000000\", \"created_at\": \"2018-10-29 06:09:19\", \"block_number\": \"6697311\"}, \"uncles\": [\"0x1ed650c1efcefcd4e2c6cf7ec12af7547fd2aa263c2d61ec203d6b9fcc87c0de\", \"0x1ed650c1efcefcd4e2c6cf7ec12af7547fd2aa263c2d61ec203d6b9fcc87c0de\", \"0x1ed650c1efcefcd4e2c6cf7ec12af7547fd2aa263c2d61ec203d6b9fcc87c0de\", \"0x1ed650c1efcefcd4e2c6cf7ec12af7547fd2aa263c2d61ec203d6b9fcc87c0de\", \"0x1ed650c1efcefcd4e2c6cf7ec12af7547fd2aa263c2d61ec203d6b9fcc87c0de\", \"0x1ed650c1efcefcd4e2c6cf7ec12af7547fd2aa263c2d61ec203d6b9fcc87c0de\", \"0x1ed650c1efcefcd4e2c6cf7ec12af7547fd2aa263c2d61ec203d6b9fcc87c0de\"]}")
-
-    # 92747
-    # this_tx = json.loads("{\"tx_hash_value\": \"0xe4889ccd60da08f40a7965200f80ce647fe6338fb98b77867814a70909306c06\", \"tx_content\": {\"timeDelta\": \"1327546\", \"gas_price\": \"1100000000\", \"gas_limit\": \"210000\", \"max_fee\": \"231000000000000\", \"created_at\": \"2018-10-29 06:32:47\", \"block_number\": \"6699302\"}, \"uncles\": [\"0xbdc034fc6e2e04d9e4e5d015a9240dc385345ae9860b808294e65cb306078a37\", \"0xbdc034fc6e2e04d9e4e5d015a9240dc385345ae9860b808294e65cb306078a37\"]}")
-
-
+    # aws
+    # 0xb6885d8fadc0f85a7e524fbd16fdbe8bba0d523c8a942d268ac9f97e5ebc5412
+    this_tx = json.loads("{\"tx_hash_value\": \"0xb6885d8fadc0f85a7e524fbd16fdbe8bba0d523c8a942d268ac9f97e5ebc5412\", \"tx_content\": {\"timeDelta\": \"518317\", \"gas_price\": \"1401000000\", \"gas_limit\": \"130008\", \"max_fee\": \"182141208000000\", \"created_at\": \"2018-11-11 09:02:26\", \"block_number\": \"6722393\"}, \"uncles\": {\"6685704\": \"0xb7b6327fbd8e982d48397582ab9756d76fee2f3705ffed543125327de1ebda94\", \"6685714\": \"0x8f5a5bb9d11af155c4b81a80730febbfef8e34dde2a103d93f85762ee9231974\"}}")
     ptd = PeerTxData(this_tx, './test.txt')
     ptd.run()
     # print(ptd.peer_blocks)
