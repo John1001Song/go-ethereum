@@ -24,6 +24,7 @@ class EthereumData:
         self.matched_txs = list()
         self.started_at = datetime.now()
 
+    # Load a TX into the dict
     def load_tx(self, path, ifBack=True):
         def extract_info(line):
             # Skip old tx without fee
@@ -56,6 +57,7 @@ class EthereumData:
             backup(path, f"{path.split('/2018')[0]}/backup/{path.split('/')[-1]}")
         self.split_txs_into_shards()
 
+    # Load a block into the dict
     def load_block(self, path, ifBack=True):
         def extract_info(block_line, tx_line):
             block = dict()
@@ -85,6 +87,9 @@ class EthereumData:
         if ifBack:
             backup(path, f"{path.split('/2018')[0]}/backup/{path.split('/')[-1]}")
 
+    # Since we have millions of TXs, using a single dict would be extremely slow.
+    # So I shard the hash_value of TXs into three layers by the last three bytes.
+    # E.g.: if hash(tx1) = abcd1234, then tx1 in self.txs['4']['3']['2']
     def split_txs_into_shards(self):
         print(f"len txs={len(self.txs)}")
         i = 0
@@ -153,9 +158,10 @@ class EthereumData:
             for tx in block['txs']:
                 if tx in unique:
                     dup += 1
+                    print(f"block={block['hash']}, unique[block]={unique[tx]}, tx={tx}")
                     continue
                 else:
-                    unique[tx] = 1
+                    unique[tx] = block['hash']
                     num += 1
         return num, dup
 
@@ -227,11 +233,13 @@ class EthereumData:
             if i % 10000 == 0:
                 print(i)
             if i == 600000:
+                # Due to 32-bit configuration of my Python, files larger than 2GB couldn't be created.
                 with open(RECORD_PATH + '/matched/' + datetime.now().strftime('%Y-%m-%d_%H') + '_' + str(file_index) + '.txt', 'w') as f:
                     f.write(rs)
                 rs = ""
                 i = 0
                 file_index += 1
+            # This messy "try-catch" is used to convert created_at from str to datetime including fixing wrong format of str.
             try:
                 if tx['created_at'].count(tx['created_at'].split(' ')[1]) > 1:
                     hour = tx['created_at'].split(' ')[1]
@@ -242,6 +250,7 @@ class EthereumData:
                 t1 = datetime.strptime(tx['created_at'], '%Y-%m-%d %H:%M:%S %z').astimezone(timezone(timedelta(hours=0))).replace(tzinfo=None)
                 t2 = datetime.strptime(tx['block_timestamp'], '%b-%d-%Y %I:%M:%S %p +%Z').replace(tzinfo=None)
                 if t1 > t2:
+                    # My node heard of this TX later than it is confirmed on the canonical chain
                     num_later += 1
                     continue
                 time_delta = t2 - t1
@@ -273,31 +282,31 @@ class EthereumData:
             f.write(rs)
 
     def run(self):
-        self = pickle.load(open('save_2018-11-16_12:50_before_clean.p', 'rb'))
-        # num, dup = self.count_tx_in_block(self.blocks)
-        # print(f"Initial status: \nCount tx in block: num={num}, dup={dup}")
-        # num = self.count_shard_tx(self.shard_txs)
-        # print(f"Count shard_tx: num={num}")
-        #
-        # self.started_at = datetime.now()
-        # [[self.load_tx(RECORD_PATH + path + file, ifBack=False) for file in os.listdir(RECORD_PATH + path)]
-        #  for path in self.tx_paths]
-        # [[self.load_block(RECORD_PATH + path + file, ifBack=False) for file in os.listdir(RECORD_PATH + path)]
-        #  for path in self.block_paths]
-        # num, dup = self.count_tx_in_block(self.blocks)
-        # print(f"Original status: \nCount tx in block: num={num}, dup={dup}")
-        # num = self.count_shard_tx(self.shard_txs)
-        # print(f"Count shard_tx: num={num}")
-        #
-        # self.match()
-        #
-        # print(f"matched_txs={len(self.matched_txs)}")
-        # num, dup = self.count_tx_in_block(self.blocks)
-        # print(f"Remaining: \nCount tx in block: num={num}, dup={dup}")
-        # num = self.count_shard_tx(self.shard_txs)
-        # print(f"Count shard_tx: num={num}")
-        # print(f"Finished matching. it's been {(datetime.now()-self.started_at).seconds} seconds")
-        # pickle.dump(self, open('save_' + datetime.now().strftime('%Y-%m-%d_%H:%M') + '_before_clean.p', 'wb'))
+        self = pickle.load(open('save_2018-11-16_18_56_before_clean.p', 'rb'))
+        num, dup = self.count_tx_in_block(self.blocks)
+        print(f"Initial status: \nCount tx in block: num={num}, dup={dup}")
+        num = self.count_shard_tx(self.shard_txs)
+        print(f"Count shard_tx: num={num}")
+
+        self.started_at = datetime.now()
+        [[self.load_tx(RECORD_PATH + path + file, ifBack=False) for file in os.listdir(RECORD_PATH + path)]
+         for path in self.tx_paths]
+        [[self.load_block(RECORD_PATH + path + file, ifBack=False) for file in os.listdir(RECORD_PATH + path)]
+         for path in self.block_paths]
+        num, dup = self.count_tx_in_block(self.blocks)
+        print(f"Original status: \nCount tx in block: num={num}, dup={dup}")
+        num = self.count_shard_tx(self.shard_txs)
+        print(f"Count shard_tx: num={num}")
+
+        self.match()
+
+        print(f"matched_txs={len(self.matched_txs)}")
+        num, dup = self.count_tx_in_block(self.blocks)
+        print(f"Remaining: \nCount tx in block: num={num}, dup={dup}")
+        num = self.count_shard_tx(self.shard_txs)
+        print(f"Count shard_tx: num={num}")
+        print(f"Finished matching. it's been {(datetime.now()-self.started_at).seconds} seconds")
+        pickle.dump(self, open('save_' + datetime.now().strftime('%Y-%m-%d_%H:%M') + '_before_clean.p', 'wb'))
 
         self.save_match()
 
@@ -306,7 +315,7 @@ class EthereumData:
 
 
 if __name__ == '__main__':
-    EthereumData(['/ali_txs/', '/aws_txs/'], ['/blocks/canonical/']).run()
+    EthereumData(['/aws_txs/'], ['/blocks/canonical/']).run()
     # a1 = '2018-10-29 04:50:08 +0800'
     # a2 = 'Oct-29-2018 04:23:42 PM +UTC'
     # t1 = datetime.strptime(a1, '%Y-%m-%d %H:%M:%S %z')
