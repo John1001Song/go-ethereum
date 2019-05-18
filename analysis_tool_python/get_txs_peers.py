@@ -204,6 +204,20 @@ class PeerTxData:
                 block_number_dict[block_number] = 1
         print(block_number_dict)
 
+        if self.block_number not in self.my_uncles:
+            self.my_uncles.append(self.block_number)
+
+        last_uncle = 0
+        for cur_uncle in self.my_uncles:
+            temp_block_list = list()
+            for key in block_number_dict.keys():
+                if int(cur_uncle) >= int(key) > int(last_uncle):
+                    temp_block_list.append(key)
+            print(f"\nblocks containing smaller tx fees {temp_block_list}")
+            print(f"before this uncle {cur_uncle}")
+
+            last_uncle = cur_uncle
+
     def analyze_peers_max_fee(self):
         # analyze how many max fees are smaller than the tx max fee
         count = 0
@@ -269,42 +283,46 @@ class PeerTxData:
         distribution_series = pd.Series(max_fee_distribution, name='percentage')
         distribution_series.index.name = 'range'
         print(distribution_series)
-        # distribution_series.plot(kind='bar')
-        # plt.title('Peers max fee difference distribution')
-        # plt.ylabel('Percentage value')
-        # plt.show()
+        distribution_series.plot(kind='bar')
+        plt.title('Peers max fee difference distribution')
+        plt.ylabel('Percentage value')
+        plt.show()
 
     def run(self):
-        [self.load_block(canonical_path + file) for file in os.listdir(canonical_path)]
-        total_block_number = len(self.peer_blocks)
-        counter = 1
-        temp_process_result = False
-        for block in self.peer_blocks:
-            if counter > 1000:
-                break
-            temp_process_result = False
-            while True:
-                try:
-                    temp_process_result = self.process_one_block(block)
-                    print(f"complete {counter}/{total_block_number}, it's been {(datetime.now()-self.started_at).seconds} seconds")
-                    if temp_process_result == True:
-                        break
-                except:
-                    print(f"Exception. Retrying...")
-
-            counter += 1
-
+        # [self.load_block(canonical_path + file) for file in os.listdir(canonical_path)]
+        # total_block_number = len(self.peer_blocks)
+        # counter = 1
+        # temp_process_result = False
+        # for block in self.peer_blocks:
+        #     if counter > 1000:
+        #         break
+        #     temp_process_result = False
+        #     while True:
+        #         try:
+        #             temp_process_result = self.process_one_block(block)
+        #             print(f"complete {counter}/{total_block_number}, it's been {(datetime.now()-self.started_at).seconds} seconds")
+        #             if temp_process_result == True:
+        #                 break
+        #         except:
+        #             print(f"Exception. Retrying...")
+        #
+        #     counter += 1
+        #
         # dump the data
-        pickle.dump(self, open('save_' + datetime.now().strftime('%Y-%m-%d_%H:%M') + '.p', 'wb'))
-        print(f"Finished saving. it's been {(datetime.now()-self.started_at).seconds} seconds")
+        # pickle.dump(self, open('save_' + datetime.now().strftime('%Y-%m-%d_%H:%M') + '.p', 'wb'))
+        # print(f"Finished saving. it's been {(datetime.now()-self.started_at).seconds} seconds")
 
         # load the data
         # self = pickle.load(open('save_2018-11-28_06:27.p', 'rb'))
 
+        self = pickle.load(open('save_2018-12-01_17:09.p', 'rb'))
+
+        # self = pickle.load(open('save_2018-12-02_02:05.p', 'rb'))
+
         self.analyze_peers_max_fee()
         self.analyze_negative_max_fee_diff()
-        # self.draw_avg_max_fee_in_blocks()
-        # self.draw_peers_max_fee()
+        self.draw_avg_max_fee_in_blocks()
+        self.draw_peers_max_fee()
 
 
 
@@ -315,13 +333,13 @@ if __name__ == '__main__':
     # this_tx = json.loads("{\"tx_hash_value\": \"0x9d7c98b7f72171a2ea12368c2491c66ce7596dbb35b408a882678feb07be533c\", \"tx_content\": {\"timeDelta\": \"805935\", \"gas_price\": \"1000000000\", \"gas_limit\": \"21000\", \"max_fee\": \"21000000000000\", \"created_at\": \"2018-11-03 09:35:53\", \"block_number\": \"6693798\"}, \"uncles\": {\"6689616\": \"0xebffc635ca62c9a75e1d18a439ac63f6dee3b47e3dac45172c5a3b9ac2f44f13\", \"6693798\": \"0x28c152e864a322688c055edf9b7884a6906f5a67158cb7922887f06cda080f0c\"}}")
 
     # ali
-    # 0x7d3232c514557c8c279aaa61d595e82c3f9e88a0adadb594394a7f46373d24f5 <--> save-12-01_17:09.p
-    # this_tx = json.loads(
-    #     "{\"tx_hash_value\": \"0x7d3232c514557c8c279aaa61d595e82c3f9e88a0adadb594394a7f46373d24f5\", \"tx_content\": {\"timeDelta\": \"804634\", \"gas_price\": \"1000000000\", \"gas_limit\": \"21000\", \"max_fee\": \"21000000000000\", \"created_at\": \"2018-11-03 09:57:34\", \"block_number\": \"6693798\"}, \"uncles\": {\"6689616\": \"0xebffc635ca62c9a75e1d18a439ac63f6dee3b47e3dac45172c5a3b9ac2f44f13\", \"6693798\": \"0x28c152e864a322688c055edf9b7884a6906f5a67158cb7922887f06cda080f0c\"}}")
+    # 0x7d3232c514557c8c279aaa61d595e82c3f9e88a0adadb594394a7f46373d24f5 <--> save_12-01_17:09.p
+    this_tx = json.loads(
+        "{\"tx_hash_value\": \"0x7d3232c514557c8c279aaa61d595e82c3f9e88a0adadb594394a7f46373d24f5\", \"tx_content\": {\"timeDelta\": \"804634\", \"gas_price\": \"1000000000\", \"gas_limit\": \"21000\", \"max_fee\": \"21000000000000\", \"created_at\": \"2018-11-03 09:57:34\", \"block_number\": \"6693798\"}, \"uncles\": {\"6689616\": \"0xebffc635ca62c9a75e1d18a439ac63f6dee3b47e3dac45172c5a3b9ac2f44f13\", \"6693798\": \"0x28c152e864a322688c055edf9b7884a6906f5a67158cb7922887f06cda080f0c\"}}")
 
     # aws
-    # 0xb6885d8fadc0f85a7e524fbd16fdbe8bba0d523c8a942d268ac9f97e5ebc5412
-    this_tx = json.loads("{\"tx_hash_value\": \"0xb6885d8fadc0f85a7e524fbd16fdbe8bba0d523c8a942d268ac9f97e5ebc5412\", \"tx_content\": {\"timeDelta\": \"518317\", \"gas_price\": \"1401000000\", \"gas_limit\": \"130008\", \"max_fee\": \"182141208000000\", \"created_at\": \"2018-11-11 09:02:26\", \"block_number\": \"6722393\"}, \"uncles\": {\"6685704\": \"0xb7b6327fbd8e982d48397582ab9756d76fee2f3705ffed543125327de1ebda94\", \"6685714\": \"0x8f5a5bb9d11af155c4b81a80730febbfef8e34dde2a103d93f85762ee9231974\"}}")
+    # 0xb6885d8fadc0f85a7e524fbd16fdbe8bba0d523c8a942d268ac9f97e5ebc5412 <--> save_2018-12-02_02:05.p
+    # this_tx = json.loads("{\"tx_hash_value\": \"0xb6885d8fadc0f85a7e524fbd16fdbe8bba0d523c8a942d268ac9f97e5ebc5412\", \"tx_content\": {\"timeDelta\": \"518317\", \"gas_price\": \"1401000000\", \"gas_limit\": \"130008\", \"max_fee\": \"182141208000000\", \"created_at\": \"2018-11-11 09:02:26\", \"block_number\": \"6722393\"}, \"uncles\": {\"6685704\": \"0xb7b6327fbd8e982d48397582ab9756d76fee2f3705ffed543125327de1ebda94\", \"6685714\": \"0x8f5a5bb9d11af155c4b81a80730febbfef8e34dde2a103d93f85762ee9231974\"}}")
     ptd = PeerTxData(this_tx, './test.txt')
     ptd.run()
     # print(ptd.peer_blocks)

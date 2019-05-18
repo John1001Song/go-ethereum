@@ -85,7 +85,6 @@ def parse_txs_list_page_content(page_content):
 
 
 def parse_block_page_content(page_content, block_number):
-
     table_dict = {}
     soup = BeautifulSoup(page_content, 'html.parser')
     table_content = soup.find(id="ContentPlaceHolder1_maintable")
@@ -94,19 +93,26 @@ def parse_block_page_content(page_content, block_number):
     # print('\n')
     # iteration the table content in html
     i = 0
+    print('info list: ', info_list)
+    print('info list len: ', len(info_list))
     while i < len(info_list):
-        # print(i)
+        print(i)
         raw_key = info_list[i]
+        print('raw key: ', raw_key)
+        print('raw key content: ', raw_key.contents)
+        print('raw key contents 0: ', raw_key.contents[0])
         key = raw_key.contents[0].split(':')[0]
-        # print("key:")
-        # print(key)
+        print("key:")
+        print(key)
         i += 1
-        # print(i)
+        print(i)
         raw_value = info_list[i]
+        print('raw value: ', raw_value)
+        print('raw value content: ', raw_value.contents)
         value = raw_value.contents[0]
-        # print("value:")
-        # print(value)
-        # print('\n')
+        print("value:")
+        print(value)
+        print('\n')
 
         table_dict[key] = value
         i += 1
@@ -177,12 +183,14 @@ def iteration(block_number, saved_file):
             block_number += 1
             i += 1
             print(f"Average time for {i} blocks: {((datetime.now()-started_at).seconds) / i} seconds")
-        except:
-            print(f"Exception. Retrying...")
-
+        except Exception as e:
+            print(f"Exception {e}. \nRetrying...")
 
 if __name__ == '__main__':
     # iteration(6546781, '../records/blocks/canonical/') AWS saved state
-    iteration(6606556, '../records/blocks/canonical/')  # Ali cloud
+    # iteration(6606556, '../records/blocks/canonical/')  # Ali cloud
+    iteration(0, '../records/blocks/canonical/')
+
+
 
 # Exception tx: 6355792, 6355801, 6355815
